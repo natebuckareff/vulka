@@ -1,4 +1,4 @@
-use super::{Device, HasRawAshHandle, HasRawVkHandle, Image};
+use super::{Device, Fence, HasRawAshHandle, HasRawVkHandle, Image, Semaphore};
 use ash::vk;
 use std::{cell::OnceCell, sync::Arc};
 
@@ -102,6 +102,30 @@ impl SwapChain {
                 .map(|vk_image| Image::new(&self.gpu_device, vk_image, true))
                 .collect()
         })
+    }
+
+    pub fn acquire_next_image(
+        &self,
+        timeout: Option<u64>,
+        semaphore: Option<&Semaphore>,
+        fence: Option<&Fence>,
+    ) -> Result<(u32, bool), vk::Result> {
+        unsafe {
+            let vk_semaphore = semaphore
+                .map(|x| x.get_vk_handle())
+                .unwrap_or(vk::Semaphore::null());
+
+            let vk_fence = fence
+                .map(|x| x.get_vk_handle())
+                .unwrap_or(vk::Fence::null());
+
+            self.ash_swapchain_fn.acquire_next_image(
+                self.vk_swapchain,
+                timeout.unwrap_or(u64::MAX),
+                vk_semaphore,
+                vk_fence,
+            )
+        }
     }
 }
 

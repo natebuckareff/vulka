@@ -1,4 +1,4 @@
-use super::{Fence, HasRawAshHandle, HasRawVkHandle, PhysicalDevice, SwapChain};
+use super::{Fence, HasRawAshHandle, HasRawVkHandle, PhysicalDevice, Queue, SwapChain};
 use ash::vk;
 use std::cell::OnceCell;
 use std::ffi::CString;
@@ -134,11 +134,20 @@ impl Device {
         }
     }
 
-    pub fn wait_for_fences(&self, fences: &[Fence], wait_all: bool, timeout: Option<u64>) -> () {
+    pub fn wait_for_fences(&self, fences: &[&Fence], wait_all: bool, timeout: Option<u64>) -> () {
         unsafe {
             let vk_fences: Vec<_> = fences.iter().map(|x| x.get_vk_handle()).collect();
             self.ash_device
                 .wait_for_fences(vk_fences.as_slice(), wait_all, timeout.unwrap_or(u64::MAX))
+                .expect("failed to wait for fences")
+        }
+    }
+
+    pub fn reset_fences(&self, fences: &[&Fence]) -> () {
+        unsafe {
+            let vk_fences: Vec<_> = fences.iter().map(|x| x.get_vk_handle()).collect();
+            self.ash_device
+                .reset_fences(vk_fences.as_slice())
                 .expect("failed to wait for fences")
         }
     }
@@ -240,92 +249,5 @@ impl QueueFamily {
             };
             Queue::new(&device_arc, family_index, vk_queue, index)
         })
-    }
-}
-
-pub struct Queue {
-    device: Arc<Device>,
-    family_index: u32,
-    vk_queue: vk::Queue,
-    index: u32,
-}
-
-impl Queue {
-    pub fn new(
-        device: &Arc<Device>,
-        family_index: u32,
-        vk_queue: vk::Queue,
-        index: u32,
-    ) -> Arc<Queue> {
-        Arc::new(Queue {
-            device: device.clone(),
-            family_index,
-            vk_queue,
-            index,
-        })
-    }
-
-    pub fn device(&self) -> &Arc<Device> {
-        &self.device
-    }
-
-    pub fn index(&self) -> u32 {
-        self.index
-    }
-
-    pub fn queue_family(&self) -> &QueueFamily {
-        let i: usize = self.family_index.try_into().unwrap();
-        &self.device.queue_families()[i]
-    }
-
-    // pub fn submit(
-    //     &self,
-    //     wait: Option<&[(Semaphore, vk::PipelineStageFlags)]>,
-    //     command_buffers: &[&CommandBuffer],
-    //     signal: Option<&[Semaphore]>,
-    // ) -> () {
-    //     unsafe {
-    //         let mut info = vk::SubmitInfo {
-    //             s_type: vk::StructureType::SUBMIT_INFO,
-    //             p_next: std::ptr::null(),
-    //             wait_semaphore_count: 0,
-    //             p_wait_semaphores: std::ptr::null(),
-    //             p_wait_dst_stage_mask: todo!(),
-    //             command_buffer_count: todo!(),
-    //             p_command_buffers: todo!(),
-    //             signal_semaphore_count: todo!(),
-    //             p_signal_semaphores: todo!(),
-    //         };
-
-    //         let wait_semaphores: Vec<vk::Semaphore>;
-    //         let wait_dst_stage_mask: Vec<vk::PipelineStageFlags> = vec![];
-    //         if let Some(wait) = wait {
-    //             wait_semaphores = vec![];
-    //             wait_semaphores.reserve(wait.len());
-
-    //             wait_dst_stage_mask = vec![];
-    //             wait_dst_stage_mask.reserve(wait.len());
-
-    //             for x in wait {
-    //                 wait_semaphores.push(x.0.handle());
-    //                 wait_dst_stage_mask.push(x.1);
-    //             }
-    //         }
-
-    //         let command_buffers: Vec<vk::CommandBuffer> = vec![];
-    //         command_buffers.reserve(command_buffers.len());
-    //         for x in command_buffers {
-    //             command_buffers.push(x.handle());
-    //         }
-
-    //         let signal_semaphores: Vec<vk::Semaphore> = vec![];
-    //         signal_semaphores.reserve(signals.len());
-    //     };
-    // }
-}
-
-impl HasRawVkHandle<vk::Queue> for Queue {
-    unsafe fn get_vk_handle(&self) -> vk::Queue {
-        self.vk_queue
     }
 }

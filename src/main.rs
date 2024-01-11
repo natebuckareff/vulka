@@ -1,7 +1,5 @@
 #[allow(dead_code)]
 mod gpu;
-use gpu::HasRawAshHandle;
-use gpu::HasRawVkHandle;
 
 use ash::vk;
 use std::sync::Arc;
@@ -273,24 +271,6 @@ fn main() {
     let render_finished = gpu::Semaphore::new(&device);
     let in_flight = gpu::Fence::signaled(&device);
 
-    // let vk_image_available_sema = unsafe {
-    //     let info = vk::SemaphoreCreateInfo::default();
-    //     device.handle().create_semaphore(&info, None).unwrap()
-    // };
-
-    // let vk_render_finished_sema = unsafe {
-    //     let info = vk::SemaphoreCreateInfo::default();
-    //     device.handle().create_semaphore(&info, None).unwrap()
-    // };
-
-    // let vk_in_flight_fence = unsafe {
-    //     let info = vk::FenceCreateInfo {
-    //         flags: vk::FenceCreateFlags::SIGNALED,
-    //         ..Default::default()
-    //     };
-    //     device.handle().create_fence(&info, None).unwrap()
-    // };
-
     event_loop.run(move |event, _, control_flow| match event {
         event::Event::WindowEvent { event, .. } => match event {
             event::WindowEvent::CloseRequested => {
@@ -306,21 +286,17 @@ fn main() {
             }
             _ => {}
         },
-        event::Event::MainEventsCleared => {
-            unsafe {
-                draw_frame(
-                    &device,
-                    &render_pass,
-                    &mut cmd_buf,
-                    &in_flight,
-                    &image_available,
-                    &render_finished,
-                    &swapchain,
-                    &framebuffers,
-                    &graphics_pipeline,
-                )
-            };
-        }
+        event::Event::MainEventsCleared => draw_frame(
+            &device,
+            &render_pass,
+            &mut cmd_buf,
+            &in_flight,
+            &image_available,
+            &render_finished,
+            &swapchain,
+            &framebuffers,
+            &graphics_pipeline,
+        ),
         event::Event::LoopDestroyed => {
             device.wait_idle();
         }
@@ -328,7 +304,7 @@ fn main() {
     })
 }
 
-unsafe fn record_command_buffer(
+fn record_command_buffer(
     cmd_buf: &mut gpu::CommandBuffer,
     render_pass: &Arc<gpu::RenderPass>,
     image_index: u32,
@@ -383,7 +359,7 @@ unsafe fn record_command_buffer(
     cmd_buf.end();
 }
 
-unsafe fn draw_frame(
+fn draw_frame(
     device: &Arc<gpu::Device>,
     render_pass: &Arc<gpu::RenderPass>,
     cmd_buf: &mut gpu::CommandBuffer,
@@ -394,74 +370,66 @@ unsafe fn draw_frame(
     framebuffers: &Vec<Arc<gpu::Framebuffer>>,
     pipeline: &Arc<gpu::GraphicsPipeline>,
 ) {
-    let ash_device = device.get_ash_handle();
+    let fences = &[in_flight_fence];
+    device.wait_for_fences(fences, true, None);
+    device.reset_fences(fences);
 
-    let fences = &[in_flight_fence.get_vk_handle()];
-    ash_device.wait_for_fences(fences, true, u64::MAX).unwrap();
-    ash_device.reset_fences(fences).unwrap();
+    let acquire_result = swapchain.acquire_next_image(None, Some(&image_available_sema), None);
+    let image_index: u32;
 
-    let (acquired_index, suboptimal) = swapchain
-        .get_ash_handle()
-        .acquire_next_image(
-            swapchain.get_vk_handle(),
-            u64::MAX,
-            image_available_sema.get_vk_handle(),
-            vk::Fence::null(),
-        )
-        .unwrap();
+    match acquire_result {
+        Ok((acquired_index, suboptimal)) => {
+            image_index = acquired_index;
+
+            if suboptimal {
+                todo!()
+            }
+        }
+        Err(result) => match result {
+            vk::Result::ERROR_OUT_OF_DATE_KHR => todo!(),
+            vk::Result::ERROR_SURFACE_LOST_KHR => todo!(),
+            vk::Result::ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT => todo!(),
+            _ => panic!("acquire_result = {:?}", result),
+        },
+    }
 
     cmd_buf.reset();
 
     record_command_buffer(
         cmd_buf,
         render_pass,
-        acquired_index,
+        image_index,
         framebuffers,
         swapchain,
         pipeline,
     );
 
-    let wait_semaphores = &[image_available_sema.get_vk_handle()];
-    let wait_stages = &[vk::PipelineStageFlags::TOP_OF_PIPE];
-    let signal_semaphores = &[render_finished_sema.get_vk_handle()];
-
-    let submit_info = vk::SubmitInfo {
-        s_type: vk::StructureType::SUBMIT_INFO,
-        p_next: std::ptr::null(),
-        wait_semaphore_count: 1,
-        p_wait_semaphores: wait_semaphores.as_ptr(),
-        p_wait_dst_stage_mask: wait_stages.as_ptr(),
-        command_buffer_count: 1,
-        p_command_buffers: [cmd_buf.handle()].as_ptr(),
-        signal_semaphore_count: 1,
-        p_signal_semaphores: signal_semaphores.as_ptr(),
-    };
-
     let graphics_queue = device.get_first_queue(vk::QueueFlags::GRAPHICS).unwrap();
     let present_queue = device.get_first_present_queue().unwrap();
 
-    let submits = &[submit_info];
-    ash_device
-        .queue_submit(
-            graphics_queue.get_vk_handle(),
-            submits,
-            in_flight_fence.get_vk_handle(),
-        )
-        .unwrap();
+    graphics_queue.submit(
+        &[(
+            image_available_sema,
+            vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+        )],
+        &[cmd_buf],
+        Some(&[render_finished_sema]),
+        Some(&in_flight_fence),
+    );
 
-    let present_info = vk::PresentInfoKHR {
-        s_type: vk::StructureType::PRESENT_INFO_KHR,
-        p_next: std::ptr::null(),
-        wait_semaphore_count: 1,
-        p_wait_semaphores: signal_semaphores.as_ptr(),
-        swapchain_count: 1,
-        p_swapchains: &swapchain.get_vk_handle(),
-        p_image_indices: &acquired_index,
-        ..Default::default()
-    };
+    let present_result =
+        present_queue.submit_present(&[render_finished_sema], &swapchain, image_index);
 
-    swapchain
-        .get_ash_handle()
-        .queue_present(present_queue.get_vk_handle(), &present_info)
-        .unwrap();
+    match present_result {
+        Ok(suboptimal) => {
+            if suboptimal {
+                todo!()
+            }
+        }
+        Err(result) => match result {
+            vk::Result::ERROR_SURFACE_LOST_KHR => todo!(),
+            vk::Result::ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT => todo!(),
+            _ => panic!("present_result = {:?}", result),
+        },
+    }
 }
