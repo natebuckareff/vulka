@@ -407,11 +407,15 @@ impl RenderFrame {
                 image_index = acquired_index;
 
                 if suboptimal {
+                    // TODO: Should recreate the swapchain
                     todo!()
                 }
             }
             Err(result) => match result {
-                vk::Result::ERROR_OUT_OF_DATE_KHR => todo!(),
+                vk::Result::ERROR_OUT_OF_DATE_KHR => {
+                    // TODO: Should recreate the swapchain
+                    todo!();
+                }
                 vk::Result::ERROR_SURFACE_LOST_KHR => todo!(),
                 vk::Result::ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT => todo!(),
                 _ => panic!("acquire_result = {:?}", result),
@@ -445,10 +449,15 @@ impl RenderFrame {
         match present_result {
             Ok(suboptimal) => {
                 if suboptimal {
+                    // TODO: Should recreate the swapchain
                     todo!()
                 }
             }
             Err(result) => match result {
+                vk::Result::ERROR_OUT_OF_DATE_KHR => {
+                    // TODO: Should recreate the swapchain
+                    todo!();
+                }
                 vk::Result::ERROR_SURFACE_LOST_KHR => todo!(),
                 vk::Result::ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT => todo!(),
                 _ => panic!("present_result = {:?}", result),
