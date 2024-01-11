@@ -30,8 +30,6 @@ impl SwapChain {
         let gpu_instance = gpu_phy_device.instance();
 
         let swapchain_create_info = unsafe {
-            let vk_surface = gpu_instance._vk_surface();
-
             let cap = gpu_phy_device.get_surface_capabilities();
 
             let vk_old_swapchain = match old_swapchain {
@@ -43,7 +41,7 @@ impl SwapChain {
                 s_type: vk::StructureType::SWAPCHAIN_CREATE_INFO_KHR,
                 p_next: std::ptr::null(),
                 flags: vk::SwapchainCreateFlagsKHR::empty(),
-                surface: *vk_surface,
+                surface: gpu_instance.get_surface().get_vk_handle(),
                 min_image_count,
                 image_format,
                 image_color_space,
@@ -108,7 +106,7 @@ impl SwapChain {
 }
 
 impl HasRawAshHandle<ash::extensions::khr::Swapchain> for SwapChain {
-    unsafe fn get_ash_handle<'t>(self: &'t Arc<Self>) -> &'t ash::extensions::khr::Swapchain {
+    unsafe fn get_ash_handle(&self) -> &ash::extensions::khr::Swapchain {
         &self.ash_swapchain_fn
     }
 }

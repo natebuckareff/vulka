@@ -145,7 +145,7 @@ impl Device {
 }
 
 impl HasRawAshHandle<ash::Device> for Device {
-    unsafe fn get_ash_handle<'t>(self: &'t Arc<Self>) -> &'t ash::Device {
+    unsafe fn get_ash_handle(&self) -> &ash::Device {
         &self.ash_device
     }
 }

@@ -1,7 +1,5 @@
-use std::sync::Arc;
-
 pub trait HasRawAshHandle<T> {
-    unsafe fn get_ash_handle<'t>(self: &'t Arc<Self>) -> &'t T;
+    unsafe fn get_ash_handle<'t>(&'t self) -> &'t T;
 }
 
 pub trait HasRawVkHandle<T> {

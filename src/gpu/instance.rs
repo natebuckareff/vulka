@@ -1,7 +1,6 @@
-use super::{HasRawAshHandle, PhysicalDevice};
+use super::{HasRawAshHandle, HasRawVkHandle, PhysicalDevice};
 use ash::vk;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 use std::cell::OnceCell;
 use std::ffi::CStr;
 use std::sync::Arc;
@@ -9,10 +8,7 @@ use std::sync::Arc;
 pub struct Instance {
     ash_entry: ash::Entry,
     ash_instance: ash::Instance,
-    raw_display_handle: RawDisplayHandle,
-    raw_window_handle: RawWindowHandle,
-    vk_surface: vk::SurfaceKHR,
-    ash_surface_fn: ash::extensions::khr::Surface,
+    surface: Surface,
     vk_physical_devices: OnceCell<Vec<vk::PhysicalDevice>>,
 }
 
@@ -79,26 +75,19 @@ impl Instance {
             )
             .expect("failed to create surface");
 
-            let vk_surface_fn = ash::extensions::khr::Surface::new(&ash_entry, &ash_instance);
+            let ash_surface_fn = ash::extensions::khr::Surface::new(&ash_entry, &ash_instance);
 
             Arc::new(Instance {
                 ash_entry,
                 ash_instance,
-                raw_display_handle,
-                raw_window_handle,
-                vk_surface,
-                ash_surface_fn: vk_surface_fn,
+                surface: Surface::new(vk_surface, ash_surface_fn),
                 vk_physical_devices: OnceCell::new(),
             })
         }
     }
 
-    pub unsafe fn _vk_surface(&self) -> &vk::SurfaceKHR {
-        &self.vk_surface
-    }
-
-    pub unsafe fn _ash_surface_fn(&self) -> &ash::extensions::khr::Surface {
-        &self.ash_surface_fn
+    pub fn get_surface(&self) -> &Surface {
+        &self.surface
     }
 
     fn _get_physical_device_handles(&self) -> &Vec<vk::PhysicalDevice> {
@@ -115,7 +104,7 @@ impl Instance {
 }
 
 impl HasRawAshHandle<ash::Instance> for Instance {
-    unsafe fn get_ash_handle<'t>(self: &'t Arc<Self>) -> &'t ash::Instance {
+    unsafe fn get_ash_handle(&self) -> &ash::Instance {
         &self.ash_instance
     }
 }
@@ -123,9 +112,41 @@ impl HasRawAshHandle<ash::Instance> for Instance {
 impl Drop for Instance {
     fn drop(&mut self) {
         unsafe {
-            self.ash_surface_fn.destroy_surface(self.vk_surface, None);
-
             self.ash_instance.destroy_instance(None);
+        }
+    }
+}
+
+pub struct Surface {
+    vk_surface: vk::SurfaceKHR,
+    ash_surface_fn: ash::extensions::khr::Surface,
+}
+
+impl Surface {
+    pub fn new(vk_surface: vk::SurfaceKHR, ash_surface_fn: ash::extensions::khr::Surface) -> Self {
+        Self {
+            vk_surface,
+            ash_surface_fn,
+        }
+    }
+}
+
+impl HasRawAshHandle<ash::extensions::khr::Surface> for Surface {
+    unsafe fn get_ash_handle(&self) -> &ash::extensions::khr::Surface {
+        &self.ash_surface_fn
+    }
+}
+
+impl HasRawVkHandle<vk::SurfaceKHR> for Surface {
+    unsafe fn get_vk_handle(&self) -> vk::SurfaceKHR {
+        self.vk_surface
+    }
+}
+
+impl Drop for Surface {
+    fn drop(&mut self) {
+        unsafe {
+            self.ash_surface_fn.destroy_surface(self.vk_surface, None);
         }
     }
 }

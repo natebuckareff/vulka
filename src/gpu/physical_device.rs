@@ -105,13 +105,13 @@ impl PhysicalDevice {
 
     pub fn supports_surface(&self, queue_family_index: u32) -> bool {
         unsafe {
-            let ash_surface_fn = self.gpu_instance._ash_surface_fn();
-            let vk_surface = self.gpu_instance._vk_surface();
-            ash_surface_fn
+            let surface = self.gpu_instance.get_surface();
+            surface
+                .get_ash_handle()
                 .get_physical_device_surface_support(
                     self.vk_phy_device,
                     queue_family_index,
-                    *vk_surface,
+                    surface.get_vk_handle(),
                 )
                 .unwrap()
         }
@@ -119,30 +119,36 @@ impl PhysicalDevice {
 
     pub fn get_surface_formats(&self) -> Vec<vk::SurfaceFormatKHR> {
         unsafe {
-            let ash_surface_fn = self.gpu_instance._ash_surface_fn();
-            let vk_surface = self.gpu_instance._vk_surface();
-            ash_surface_fn
-                .get_physical_device_surface_formats(self.vk_phy_device, *vk_surface)
+            let surface = self.gpu_instance.get_surface();
+            surface
+                .get_ash_handle()
+                .get_physical_device_surface_formats(self.vk_phy_device, surface.get_vk_handle())
                 .unwrap()
         }
     }
 
     pub fn get_surface_present_modes(&self) -> Vec<vk::PresentModeKHR> {
         unsafe {
-            let ash_surface_fn = self.gpu_instance._ash_surface_fn();
-            let vk_surface = self.gpu_instance._vk_surface();
-            ash_surface_fn
-                .get_physical_device_surface_present_modes(self.vk_phy_device, *vk_surface)
+            let surface = self.gpu_instance.get_surface();
+            surface
+                .get_ash_handle()
+                .get_physical_device_surface_present_modes(
+                    self.vk_phy_device,
+                    surface.get_vk_handle(),
+                )
                 .unwrap()
         }
     }
 
     pub fn get_surface_capabilities(&self) -> vk::SurfaceCapabilitiesKHR {
         unsafe {
-            let ash_surface_fn = self.gpu_instance._ash_surface_fn();
-            let vk_surface = self.gpu_instance._vk_surface();
-            ash_surface_fn
-                .get_physical_device_surface_capabilities(self.vk_phy_device, *vk_surface)
+            let surface = self.gpu_instance.get_surface();
+            surface
+                .get_ash_handle()
+                .get_physical_device_surface_capabilities(
+                    self.vk_phy_device,
+                    surface.get_vk_handle(),
+                )
                 .unwrap()
         }
     }
