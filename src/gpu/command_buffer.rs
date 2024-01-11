@@ -104,7 +104,7 @@ impl CommandBuffer {
         self.vk_command_buffer
     }
 
-    pub fn begin(&mut self, flags: vk::CommandBufferUsageFlags) -> () {
+    pub fn begin(&self, flags: vk::CommandBufferUsageFlags) -> () {
         unsafe {
             self.pool
                 .device
@@ -123,7 +123,7 @@ impl CommandBuffer {
     }
 
     pub fn begin_render_pass(
-        &mut self,
+        &self,
         render_pass: &Arc<RenderPass>,
         framebuffer: &Arc<Framebuffer>,
         render_area: vk::Rect2D,
@@ -155,7 +155,7 @@ impl CommandBuffer {
     }
 
     pub fn bind_pipeline(
-        &mut self,
+        &self,
         pipeline: &Arc<impl Pipeline + HasRawVkHandle<vk::Pipeline>>,
     ) -> () {
         unsafe {
@@ -167,7 +167,7 @@ impl CommandBuffer {
         }
     }
 
-    pub fn set_viewport(&mut self, first_viewport: u32, viewports: &[vk::Viewport]) -> () {
+    pub fn set_viewport(&self, first_viewport: u32, viewports: &[vk::Viewport]) -> () {
         unsafe {
             self.pool.device.get_ash_handle().cmd_set_viewport(
                 self.vk_command_buffer,
@@ -177,7 +177,7 @@ impl CommandBuffer {
         }
     }
 
-    pub fn set_scissor(&mut self, first_scissor: u32, scissors: &[vk::Rect2D]) -> () {
+    pub fn set_scissor(&self, first_scissor: u32, scissors: &[vk::Rect2D]) -> () {
         unsafe {
             self.pool.device.get_ash_handle().cmd_set_scissor(
                 self.vk_command_buffer,
@@ -188,7 +188,7 @@ impl CommandBuffer {
     }
 
     pub fn draw(
-        &mut self,
+        &self,
         vertex_count: u32,
         instance_count: u32,
         first_vertex: u32,
@@ -205,7 +205,7 @@ impl CommandBuffer {
         }
     }
 
-    pub fn end_render_pass(&mut self) -> () {
+    pub fn end_render_pass(&self) -> () {
         unsafe {
             self.pool
                 .device
@@ -214,7 +214,7 @@ impl CommandBuffer {
         }
     }
 
-    pub fn end(&mut self) -> () {
+    pub fn end(&self) -> () {
         unsafe {
             self.pool
                 .device
@@ -224,7 +224,7 @@ impl CommandBuffer {
         }
     }
 
-    pub fn reset(&mut self) -> () {
+    pub fn reset(&self) -> () {
         unsafe {
             self.pool
                 .device
