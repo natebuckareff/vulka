@@ -2,11 +2,9 @@ use ash::vk;
 use std::{rc::Rc, sync::Arc};
 use winit::window::Window;
 
-const MAX_FRAMES_IN_FLIGHT: usize = 1;
-
 use crate::gpu::{
-    CommandBuffer, CommandPool, Device, Fence, Framebuffer, GraphicsPipeline, Instance,
-    PhysicalDevice, PipelineLayout, RenderPass, RenderPassConfig, Semaphore, ShaderKind,
+    CommandBuffer, CommandPool, Device, Fence, Framebuffer, GraphicsPipeline, HasRawVkHandle,
+    Instance, PhysicalDevice, PipelineLayout, RenderPass, RenderPassConfig, Semaphore, ShaderKind,
     ShaderModule, Swapchain,
 };
 
@@ -21,10 +19,17 @@ pub struct RenderContext {
     framebuffers: Vec<Arc<Framebuffer>>,
     cmd_pool: Rc<CommandPool>,
     render_frames: Vec<RenderFrame>,
+    current_frame: usize,
+}
+
+struct SurfaceDetails {
+    present_mode: vk::PresentModeKHR,
+    format: vk::SurfaceFormatKHR,
+    extent: vk::Extent2D,
 }
 
 impl RenderContext {
-    pub fn new(window: &Arc<Window>) -> Self {
+    pub fn new(window: &Arc<Window>, max_frames_in_flight: usize) -> Self {
         let instance = Instance::new(&window);
 
         let required_queue_flags = vec![vk::QueueFlags::GRAPHICS];
@@ -73,42 +78,6 @@ impl RenderContext {
 
         println!("physical_device.name = {}", physical_device.device_name());
 
-        // Use MAILBOX if the device supports it, otherwise fallback to FIFO
-        let surface_present_mode = physical_device
-            .get_surface_present_modes()
-            .into_iter()
-            .min_by_key(|x| match *x {
-                vk::PresentModeKHR::MAILBOX => 0,
-                vk::PresentModeKHR::FIFO => 1,
-                _ => 2,
-            })
-            .unwrap();
-
-        // Chose the swapchain surface format to use, preferring B8G8R8A8_SRGB
-        // with a SRGB_NONLINEAR color space, and otherwise taking the first
-        // option
-        let surface_format = physical_device
-            .get_surface_formats()
-            .into_iter()
-            .enumerate()
-            .min_by_key(|(index, x)| {
-                if x.format == vk::Format::B8G8R8A8_SRGB {
-                    if x.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR {
-                        return 0;
-                    }
-                }
-                index + 1
-            })
-            .map(|(_, x)| x)
-            .unwrap();
-
-        let surface_extent =
-            physical_device.get_surface_current_extent_clamped(window.inner_size());
-
-        println!("surface_present_mode = {:?}", surface_present_mode);
-        println!("surface_present_format = {:?}", surface_format);
-        println!("surface_extent = {:?}", surface_extent);
-
         // Select queue family indices for logical device creation
         let mut queue_family_indices = vec![];
         for (i, x) in physical_device
@@ -139,40 +108,10 @@ impl RenderContext {
 
         let device = physical_device.get_device(&queue_family_indices, &required_extensions);
 
-        let swapchain = device.get_swapchain(
-            physical_device.get_surface_ideal_image_count(),
-            surface_format.format,
-            surface_format.color_space,
-            surface_extent,
-            vk::ImageUsageFlags::COLOR_ATTACHMENT,
-            surface_present_mode,
-            None,
-        );
-
-        let swapchain_images = swapchain.images();
-
-        let swapchain_image_views = swapchain_images
-            .iter()
-            .map(|image| {
-                image.get_image_view(
-                    vk::ImageViewType::TYPE_2D,
-                    *swapchain.format(),
-                    vk::ComponentMapping::default(),
-                    vk::ImageSubresourceRange {
-                        aspect_mask: vk::ImageAspectFlags::COLOR,
-                        base_mip_level: 0,
-                        level_count: 1,
-                        base_array_layer: 0,
-                        layer_count: 1,
-                    },
-                )
-            })
-            .collect::<Vec<_>>();
-
-        println!(
-            "swapchain_image_views.len() = {}",
-            swapchain_image_views.len()
-        );
+        let swapchain = {
+            let inner_size = window.inner_size();
+            RenderContext::_create_swapchain(&device, inner_size.width, inner_size.height, None)
+        };
 
         let shader_compiler = shaderc::Compiler::new().unwrap();
 
@@ -243,18 +182,7 @@ impl RenderContext {
             &render_pass,
         );
 
-        let mut framebuffers = vec![];
-
-        for image_view in &swapchain_image_views {
-            let vk::Extent2D { width, height } = *swapchain.extent();
-            framebuffers.push(Framebuffer::new(
-                &render_pass,
-                vec![image_view.clone()],
-                width,
-                height,
-                1,
-            ));
-        }
+        let framebuffers = RenderContext::_create_framebuffers(&swapchain, &render_pass);
 
         println!("framebuffers.len() = {}", framebuffers.len());
 
@@ -277,10 +205,11 @@ impl RenderContext {
             framebuffers,
             cmd_pool,
             render_frames: vec![],
+            current_frame: 0,
         };
 
-        render_context.render_frames.reserve(MAX_FRAMES_IN_FLIGHT);
-        for _ in 0..MAX_FRAMES_IN_FLIGHT {
+        render_context.render_frames.reserve(max_frames_in_flight);
+        for _ in 0..max_frames_in_flight {
             render_context
                 .render_frames
                 .push(RenderFrame::new(&render_context));
@@ -289,8 +218,141 @@ impl RenderContext {
         render_context
     }
 
-    pub fn draw_frame(&self) {
-        self.render_frames[0].draw_frame(self);
+    fn _get_surface_details(
+        physical_device: &Arc<PhysicalDevice>,
+        width: u32,
+        height: u32,
+    ) -> SurfaceDetails {
+        // Use MAILBOX if the device supports it, otherwise fallback to FIFO
+        let present_mode = physical_device
+            .get_surface_present_modes()
+            .into_iter()
+            .min_by_key(|x| match *x {
+                vk::PresentModeKHR::MAILBOX => 0,
+                vk::PresentModeKHR::FIFO => 1,
+                _ => 2,
+            })
+            .unwrap();
+
+        // Chose the swapchain surface format to use, preferring B8G8R8A8_SRGB
+        // with a SRGB_NONLINEAR color space, and otherwise taking the first
+        // option
+        let format = physical_device
+            .get_surface_formats()
+            .into_iter()
+            .enumerate()
+            .min_by_key(|(index, x)| {
+                if x.format == vk::Format::B8G8R8A8_SRGB {
+                    if x.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR {
+                        return 0;
+                    }
+                }
+                index + 1
+            })
+            .map(|(_, x)| x)
+            .unwrap();
+
+        let extent = physical_device.get_surface_current_extent_clamped(width, height);
+
+        println!("present_mode = {:?}", present_mode);
+        println!("present_format = {:?}", format);
+        println!("extent = {:?}", extent);
+
+        SurfaceDetails {
+            present_mode,
+            format,
+            extent,
+        }
+    }
+
+    fn _create_swapchain(
+        device: &Arc<Device>,
+        width: u32,
+        height: u32,
+        old_swapchain: Option<&Arc<Swapchain>>,
+    ) -> Arc<Swapchain> {
+        let physical_device = device.physical_device();
+
+        let SurfaceDetails {
+            present_mode,
+            format,
+            extent,
+        } = RenderContext::_get_surface_details(physical_device, width, height);
+
+        let swapchain = device.get_swapchain(
+            physical_device.get_surface_ideal_image_count(),
+            format.format,
+            format.color_space,
+            extent,
+            vk::ImageUsageFlags::COLOR_ATTACHMENT,
+            present_mode,
+            old_swapchain,
+        );
+
+        swapchain
+    }
+
+    fn _create_framebuffers(
+        swapchain: &Arc<Swapchain>,
+        render_pass: &Arc<RenderPass>,
+    ) -> Vec<Arc<Framebuffer>> {
+        let mut framebuffers = vec![];
+
+        let swapchain_image_views = swapchain
+            .images()
+            .iter()
+            .map(|image| {
+                image.get_image_view(
+                    vk::ImageViewType::TYPE_2D,
+                    *swapchain.format(),
+                    vk::ComponentMapping::default(),
+                    vk::ImageSubresourceRange {
+                        aspect_mask: vk::ImageAspectFlags::COLOR,
+                        base_mip_level: 0,
+                        level_count: 1,
+                        base_array_layer: 0,
+                        layer_count: 1,
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+
+        for image_view in &swapchain_image_views {
+            let vk::Extent2D { width, height } = *swapchain.extent();
+            framebuffers.push(Framebuffer::new(
+                &render_pass,
+                vec![image_view.clone()],
+                width,
+                height,
+                1,
+            ));
+        }
+
+        framebuffers
+    }
+
+    fn _recreate_render_frames(&mut self) {}
+
+    pub fn recreate_swapchain(&mut self, width: u32, height: u32) {
+        self.device.wait_idle();
+
+        self.swapchain =
+            RenderContext::_create_swapchain(&self.device, width, height, Some(&self.swapchain));
+
+        self.framebuffers = RenderContext::_create_framebuffers(&self.swapchain, &self.render_pass);
+
+        let max_frames_in_flight = self.render_frames.len();
+
+        self.render_frames.clear();
+
+        for _ in 0..max_frames_in_flight {
+            self.render_frames.push(RenderFrame::new(&self));
+        }
+    }
+
+    pub fn draw_next_frame(&mut self) {
+        self.render_frames[self.current_frame].draw_frame(self);
+        self.current_frame = (self.current_frame + 1) % self.render_frames.len();
     }
 }
 

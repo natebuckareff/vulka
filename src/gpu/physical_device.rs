@@ -4,7 +4,6 @@ use std::cell::OnceCell;
 use std::collections::HashSet;
 use std::ffi::CStr;
 use std::sync::Arc;
-use winit::dpi::PhysicalSize;
 
 #[derive(Clone)]
 pub struct PhysicalDevice {
@@ -153,13 +152,9 @@ impl PhysicalDevice {
         }
     }
 
-    pub fn get_surface_current_extent_clamped(
-        &self,
-        inner_size: PhysicalSize<u32>,
-    ) -> vk::Extent2D {
+    pub fn get_surface_current_extent_clamped(&self, width: u32, height: u32) -> vk::Extent2D {
         let caps = self.get_surface_capabilities();
         let current_extent = caps.current_extent;
-        let PhysicalSize { width, height } = inner_size;
 
         if current_extent.width != u32::MAX && current_extent.height != u32::MAX {
             return current_extent;

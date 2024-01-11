@@ -23,7 +23,7 @@ fn main() {
             .expect("failed to create window"),
     );
 
-    let render_context = render_context::RenderContext::new(&window);
+    let mut render_context = render_context::RenderContext::new(&window, 2);
 
     event_loop.run(move |event, _, control_flow| match event {
         event::Event::WindowEvent { event, .. } => match event {
@@ -36,12 +36,12 @@ fn main() {
                 }
             }
             event::WindowEvent::Resized(inner_size) => {
-                println!("{:?}", inner_size);
+                render_context.recreate_swapchain(inner_size.width, inner_size.height);
             }
             _ => {}
         },
         event::Event::MainEventsCleared => {
-            render_context.draw_frame();
+            render_context.draw_next_frame();
         }
         _ => {}
     })
