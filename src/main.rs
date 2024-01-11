@@ -309,7 +309,7 @@ fn record_command_buffer(
     render_pass: &Arc<gpu::RenderPass>,
     image_index: u32,
     framebuffers: &Vec<Arc<gpu::Framebuffer>>,
-    swapchain: &Arc<gpu::SwapChain>,
+    swapchain: &Arc<gpu::Swapchain>,
     pipeline: &Arc<gpu::GraphicsPipeline>,
 ) {
     cmd_buf.begin(vk::CommandBufferUsageFlags::empty());
@@ -366,7 +366,7 @@ fn draw_frame(
     in_flight_fence: &gpu::Fence,
     image_available_sema: &gpu::Semaphore,
     render_finished_sema: &gpu::Semaphore,
-    swapchain: &Arc<gpu::SwapChain>,
+    swapchain: &Arc<gpu::Swapchain>,
     framebuffers: &Vec<Arc<gpu::Framebuffer>>,
     pipeline: &Arc<gpu::GraphicsPipeline>,
 ) {

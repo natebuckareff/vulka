@@ -1,4 +1,4 @@
-use super::{Fence, HasRawAshHandle, HasRawVkHandle, PhysicalDevice, Queue, SwapChain};
+use super::{Fence, HasRawAshHandle, HasRawVkHandle, PhysicalDevice, Queue, Swapchain};
 use ash::vk;
 use std::cell::OnceCell;
 use std::ffi::CString;
@@ -112,9 +112,9 @@ impl Device {
         image_extent: vk::Extent2D,
         image_usage: vk::ImageUsageFlags,
         present_mode: vk::PresentModeKHR,
-        old_swapchain: Option<&Arc<SwapChain>>,
-    ) -> Arc<SwapChain> {
-        SwapChain::new(
+        old_swapchain: Option<&Arc<Swapchain>>,
+    ) -> Arc<Swapchain> {
+        Swapchain::new(
             self,
             min_image_count,
             image_format,

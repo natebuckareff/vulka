@@ -1,4 +1,4 @@
-use super::{CommandBuffer, Device, Fence, QueueFamily, Semaphore, SwapChain};
+use super::{CommandBuffer, Device, Fence, QueueFamily, Semaphore, Swapchain};
 use super::{HasRawAshHandle, HasRawVkHandle};
 use ash::vk;
 use std::sync::Arc;
@@ -124,7 +124,7 @@ impl Queue {
     pub fn submit_present(
         &self,
         wait: &[&Semaphore],
-        swapchain: &SwapChain,
+        swapchain: &Swapchain,
         image_index: u32,
     ) -> Result<bool, vk::Result> {
         let mut info = vk::PresentInfoKHR {

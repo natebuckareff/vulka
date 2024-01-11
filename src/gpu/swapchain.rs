@@ -2,7 +2,7 @@ use super::{Device, Fence, HasRawAshHandle, HasRawVkHandle, Image, Semaphore};
 use ash::vk;
 use std::{cell::OnceCell, sync::Arc};
 
-pub struct SwapChain {
+pub struct Swapchain {
     gpu_device: Arc<Device>,
     vk_swapchain: vk::SwapchainKHR,
     ash_swapchain_fn: ash::extensions::khr::Swapchain,
@@ -11,7 +11,7 @@ pub struct SwapChain {
     images: OnceCell<Vec<Arc<Image>>>,
 }
 
-impl SwapChain {
+impl Swapchain {
     pub fn new(
         gpu_device: &Arc<Device>,
         min_image_count: u32,
@@ -20,8 +20,8 @@ impl SwapChain {
         image_extent: vk::Extent2D,
         image_usage: vk::ImageUsageFlags,
         present_mode: vk::PresentModeKHR,
-        old_swapchain: Option<&Arc<SwapChain>>,
-    ) -> Arc<SwapChain> {
+        old_swapchain: Option<&Arc<Swapchain>>,
+    ) -> Arc<Swapchain> {
         // TODO: Assumes that graphics and presentation queues are the same,
         // which will usually be the case. Should check if they're different and
         // use `vk::SharingMode::CONCURRENT` and pass in `pQueueFamilyIndices`
@@ -71,7 +71,7 @@ impl SwapChain {
                 .expect("failed to create swapchain")
         };
 
-        Arc::new(SwapChain {
+        Arc::new(Swapchain {
             gpu_device: gpu_device.clone(),
             vk_swapchain,
             ash_swapchain_fn,
@@ -129,19 +129,19 @@ impl SwapChain {
     }
 }
 
-impl HasRawAshHandle<ash::extensions::khr::Swapchain> for SwapChain {
+impl HasRawAshHandle<ash::extensions::khr::Swapchain> for Swapchain {
     unsafe fn get_ash_handle(&self) -> &ash::extensions::khr::Swapchain {
         &self.ash_swapchain_fn
     }
 }
 
-impl HasRawVkHandle<vk::SwapchainKHR> for SwapChain {
+impl HasRawVkHandle<vk::SwapchainKHR> for Swapchain {
     unsafe fn get_vk_handle(&self) -> vk::SwapchainKHR {
         self.vk_swapchain
     }
 }
 
-impl Drop for SwapChain {
+impl Drop for Swapchain {
     fn drop(&mut self) {
         unsafe {
             self.ash_swapchain_fn
