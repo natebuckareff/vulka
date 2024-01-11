@@ -5,12 +5,13 @@ use std::sync::Arc;
 pub struct Framebuffer {
     render_pass: Arc<RenderPass>,
     vk_framebuffer: vk::Framebuffer,
+    image_views: Vec<Arc<ImageView>>,
 }
 
 impl Framebuffer {
     pub fn new(
         render_pass: &Arc<RenderPass>,
-        image_views: &Vec<Arc<ImageView>>,
+        image_views: Vec<Arc<ImageView>>,
         width: u32,
         height: u32,
         layers: u32,
@@ -45,6 +46,7 @@ impl Framebuffer {
         Arc::new(Framebuffer {
             render_pass: render_pass.clone(),
             vk_framebuffer,
+            image_views,
         })
     }
 
