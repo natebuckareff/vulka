@@ -259,7 +259,7 @@ fn main() {
 
     let graphics_queue = device.get_first_queue(vk::QueueFlags::GRAPHICS).unwrap();
 
-    let cmd_pool = gpu::CommandBufferPool::new(
+    let cmd_pool = gpu::CommandPool::new(
         &device,
         graphics_queue.queue_family(),
         vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,

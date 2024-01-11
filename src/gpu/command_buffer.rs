@@ -5,12 +5,12 @@ use ash::vk;
 use std::rc::Rc;
 use std::sync::Arc;
 
-pub struct CommandBufferPool {
+pub struct CommandPool {
     device: Arc<Device>,
     vk_command_pool: vk::CommandPool,
 }
 
-impl CommandBufferPool {
+impl CommandPool {
     pub fn new(
         device: &Arc<Device>,
         queue_family: &QueueFamily,
@@ -44,10 +44,7 @@ impl CommandBufferPool {
         self.vk_command_pool
     }
 
-    pub fn allocate_one(
-        self: &Rc<CommandBufferPool>,
-        level: vk::CommandBufferLevel,
-    ) -> CommandBuffer {
+    pub fn allocate_one(self: &Rc<CommandPool>, level: vk::CommandBufferLevel) -> CommandBuffer {
         let allocate_info = vk::CommandBufferAllocateInfo {
             s_type: vk::StructureType::COMMAND_BUFFER_ALLOCATE_INFO,
             p_next: std::ptr::null(),
@@ -67,13 +64,13 @@ impl CommandBufferPool {
     }
 }
 
-impl HasRawVkHandle<vk::CommandPool> for CommandBufferPool {
+impl HasRawVkHandle<vk::CommandPool> for CommandPool {
     unsafe fn get_vk_handle(&self) -> vk::CommandPool {
         self.vk_command_pool
     }
 }
 
-impl Drop for CommandBufferPool {
+impl Drop for CommandPool {
     fn drop(&mut self) {
         unsafe {
             self.device
@@ -84,19 +81,19 @@ impl Drop for CommandBufferPool {
 }
 
 pub struct CommandBuffer {
-    pool: Rc<CommandBufferPool>,
+    pool: Rc<CommandPool>,
     vk_command_buffer: vk::CommandBuffer,
 }
 
 impl CommandBuffer {
-    pub fn new(pool: &Rc<CommandBufferPool>, vk_command_buffer: vk::CommandBuffer) -> Self {
+    pub fn new(pool: &Rc<CommandPool>, vk_command_buffer: vk::CommandBuffer) -> Self {
         Self {
             pool: pool.clone(),
             vk_command_buffer,
         }
     }
 
-    pub fn pool(&self) -> &Rc<CommandBufferPool> {
+    pub fn pool(&self) -> &Rc<CommandPool> {
         &self.pool
     }
 
