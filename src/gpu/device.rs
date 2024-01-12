@@ -32,10 +32,7 @@ impl Device {
             queue_create_infos.push(unsafe { queue_family.get_device_queue_create_info() });
         }
 
-        let enabled_extensions_nul = enabled_extensions
-            .iter()
-            .map(|x| [x, b"\0".as_slice()].concat())
-            .collect::<Vec<_>>();
+        let enabled_extensions_nul = enabled_extensions.iter().map(|x| x).collect::<Vec<_>>();
 
         let enabled_extensions_ptrs = enabled_extensions_nul
             .iter()

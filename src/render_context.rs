@@ -59,7 +59,7 @@ impl RenderContext {
 
         let required_extensions: &[&[u8]] = &[
             // b"VK_EXT_debug_utils\0",
-            b"VK_KHR_swapchain",
+            b"VK_KHR_swapchain\0",
         ];
 
         // Find the first physical device that supports the swapchain extension
