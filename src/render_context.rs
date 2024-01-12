@@ -42,11 +42,11 @@ impl RenderContext {
     pub fn new(window: &Arc<Window>, max_frames_in_flight: usize) -> Self {
         let instance = Instance::new(&window);
 
-        let required_queue_flags = vec![vk::QueueFlags::GRAPHICS];
+        let required_queue_flags = &[vk::QueueFlags::GRAPHICS];
 
-        let required_extensions = &[
-            // "VK_EXT_debug_utils",
-            "VK_KHR_swapchain",
+        let required_extensions: &[&[u8]] = &[
+            // b"VK_EXT_debug_utils\0",
+            b"VK_KHR_swapchain\0",
         ];
 
         // Find the first physical device that supports the swapchain extension
@@ -64,7 +64,7 @@ impl RenderContext {
                 // Filter for physical devices that support all of the required
                 // queue flags and the window surface
                 let mut supports_surface = false;
-                let mut flags = required_queue_flags.clone();
+                let mut flags = Vec::from(required_queue_flags);
                 for (i, properties) in x.get_queue_family_properties().iter().enumerate() {
                     if x.supports_surface(i.try_into().unwrap()) {
                         supports_surface = true;

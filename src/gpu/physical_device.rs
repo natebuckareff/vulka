@@ -37,7 +37,7 @@ impl PhysicalDevice {
     pub fn get_device(
         self: &Arc<PhysicalDevice>,
         queue_family_indices: &[u32],
-        enabled_extensions: &[&str],
+        enabled_extensions: &[&[u8]],
     ) -> Arc<Device> {
         Device::new(
             self,
@@ -70,9 +70,8 @@ impl PhysicalDevice {
 
     pub fn device_name(&self) -> &str {
         get_str_from_chars(
-            self._get_physical_device_properties()
+            &self._get_physical_device_properties()
                 .device_name
-                .as_slice(),
         )
     }
 
@@ -90,8 +89,8 @@ impl PhysicalDevice {
         })
     }
 
-    pub fn extension_name_hashset(&self) -> HashSet<&str> {
-        HashSet::from_iter(self.extension_names().iter().map(String::as_str))
+    pub fn extension_name_hashset(&self) -> HashSet<&[u8]> {
+        HashSet::from_iter(self.extension_names().iter().map(String::as_bytes))
     }
 
     pub fn get_queue_family_properties(&self) -> Vec<vk::QueueFamilyProperties> {
@@ -190,7 +189,7 @@ impl HasRawVkHandle<vk::PhysicalDevice> for PhysicalDevice {
     }
 }
 
-fn get_str_from_chars<'t>(chars: &[i8]) -> &'t str {
+fn get_str_from_chars(chars: &[i8]) -> &str {
     let bytes = unsafe { core::slice::from_raw_parts(chars.as_ptr() as *const u8, chars.len()) };
     let cstr = CStr::from_bytes_until_nul(bytes).unwrap();
     cstr.to_str().unwrap()
