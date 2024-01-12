@@ -1,10 +1,11 @@
 use ash::vk;
-use std::{rc::Rc, sync::Arc};
+use memoffset::offset_of;
+use std::{mem::size_of, rc::Rc, sync::Arc};
 use winit::window::Window;
 
 use crate::gpu::{
-    CommandBuffer, CommandPool, Device, Fence, Framebuffer, GraphicsPipeline, HasRawVkHandle,
-    Instance, PhysicalDevice, PipelineLayout, RenderPass, RenderPassConfig, Semaphore, ShaderKind,
+    Buffer, CommandBuffer, CommandPool, Device, Fence, Framebuffer, GraphicsPipeline, Instance,
+    PhysicalDevice, PipelineLayout, RenderPass, RenderPassConfig, Semaphore, ShaderKind,
     ShaderModule, Swapchain,
 };
 
@@ -17,6 +18,7 @@ pub struct RenderContext {
     render_pass: Arc<RenderPass>,
     graphics_pipeline: Arc<GraphicsPipeline>,
     framebuffers: Vec<Arc<Framebuffer>>,
+    vertex_buffers: Vec<Buffer>,
     cmd_pool: Rc<CommandPool>,
     render_frames: Vec<RenderFrame>,
     current_frame: usize,
@@ -26,6 +28,12 @@ struct SurfaceDetails {
     present_mode: vk::PresentModeKHR,
     format: vk::SurfaceFormatKHR,
     extent: vk::Extent2D,
+}
+
+#[repr(C)]
+struct Vertex {
+    position: [f32; 2],
+    color: [f32; 3],
 }
 
 impl RenderContext {
@@ -170,9 +178,53 @@ impl RenderContext {
 
         let pipeline_layout = PipelineLayout::new(&device, None, None);
 
+        #[rustfmt::skip]
+            let vertices = [
+                Vertex { position:[ 0.0, -0.5], color:[1.0, 0.0, 1.0] },
+                Vertex { position:[ 0.5,  0.5], color:[0.0, 1.0, 1.0] },
+                Vertex { position:[-0.5,  0.5], color:[0.0, 0.0, 1.0] },
+            ];
+
+        let vertex_bindings = vk::VertexInputBindingDescription {
+            binding: 0,
+            stride: size_of::<Vertex>().try_into().unwrap(),
+            input_rate: vk::VertexInputRate::VERTEX,
+        };
+
+        let vertex_attributes = [
+            vk::VertexInputAttributeDescription {
+                binding: 0,
+                location: 0,
+                format: vk::Format::R32G32_SFLOAT,
+                offset: offset_of!(Vertex, position).try_into().unwrap(),
+            },
+            vk::VertexInputAttributeDescription {
+                binding: 0,
+                location: 1,
+                format: vk::Format::R32G32B32_SFLOAT,
+                offset: offset_of!(Vertex, color).try_into().unwrap(),
+            },
+        ];
+
+        let mut vertex_buffer = Buffer::new(
+            &device,
+            size_of::<Vertex>() * vertices.len(),
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+        );
+
+        vertex_buffer.allocate(
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        );
+
+        vertex_buffer.copy_nonoverlapping(&vertices);
+
+        let vertex_buffers = vec![vertex_buffer];
+
         let graphics_pipeline = GraphicsPipeline::new(
             &device,
             &shader_modules,
+            Some(&[vertex_bindings]),
+            Some(&vertex_attributes),
             &vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             vk::PrimitiveTopology::TRIANGLE_LIST,
             false,
@@ -203,6 +255,7 @@ impl RenderContext {
             render_pass,
             graphics_pipeline,
             framebuffers,
+            vertex_buffers,
             cmd_pool,
             render_frames: vec![],
             current_frame: 0,
@@ -331,8 +384,6 @@ impl RenderContext {
         framebuffers
     }
 
-    fn _recreate_render_frames(&mut self) {}
-
     pub fn recreate_swapchain(&mut self, width: u32, height: u32) {
         self.device.wait_idle();
 
@@ -393,7 +444,6 @@ impl RenderFrame {
     pub fn draw_frame(&self, context: &RenderContext) {
         let fences = &[&self.in_flight];
         context.device.wait_for_fences(fences, true, None);
-        context.device.reset_fences(fences);
 
         let acquire_result =
             context
@@ -422,6 +472,7 @@ impl RenderFrame {
             },
         }
 
+        context.device.reset_fences(fences);
         self.cmd_buf.reset();
 
         self.record_commands(context, image_index);
@@ -508,6 +559,12 @@ impl RenderFrame {
             }],
         );
 
+        let mut vertex_buffers = vec![];
+        for x in &context.vertex_buffers {
+            vertex_buffers.push((x, 0u64));
+        }
+
+        self.cmd_buf.bind_buffer(0, &vertex_buffers);
         self.cmd_buf.draw(3, 1, 0, 0);
         self.cmd_buf.end_render_pass();
         self.cmd_buf.end();

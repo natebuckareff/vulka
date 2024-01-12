@@ -1,3 +1,4 @@
+mod buffer;
 mod command_buffer;
 mod device;
 mod framebuffer;
@@ -14,6 +15,7 @@ mod shader_module;
 mod swapchain;
 mod sync;
 
+pub use buffer::*;
 pub use command_buffer::*;
 pub use device::*;
 pub use framebuffer::*;

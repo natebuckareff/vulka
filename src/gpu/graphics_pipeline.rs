@@ -15,6 +15,8 @@ impl GraphicsPipeline {
     pub fn new(
         device: &Arc<Device>,
         shader_modules: &Vec<Arc<ShaderModule>>,
+        vertex_bindings: Option<&[vk::VertexInputBindingDescription]>,
+        vertex_attributes: Option<&[vk::VertexInputAttributeDescription]>,
         dynamic_states: &Vec<vk::DynamicState>,
         topology: vk::PrimitiveTopology,
         primitive_restart: bool,
@@ -58,7 +60,7 @@ impl GraphicsPipeline {
 
         let mut _vertex_input_state_create_info = None;
         if !dynamic_states.contains(&vk::DynamicState::VERTEX_INPUT_EXT) {
-            let handle = Box::new(vk::PipelineVertexInputStateCreateInfo {
+            let mut handle = Box::new(vk::PipelineVertexInputStateCreateInfo {
                 s_type: vk::StructureType::PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
                 p_next: std::ptr::null(),
                 flags: vk::PipelineVertexInputStateCreateFlags::empty(),
@@ -67,6 +69,17 @@ impl GraphicsPipeline {
                 vertex_attribute_description_count: 0,
                 p_vertex_attribute_descriptions: std::ptr::null(),
             });
+
+            if let Some(bindings) = vertex_bindings {
+                handle.vertex_binding_description_count = bindings.len().try_into().unwrap();
+                handle.p_vertex_binding_descriptions = bindings.as_ptr();
+            }
+
+            if let Some(attributes) = vertex_attributes {
+                handle.vertex_attribute_description_count = attributes.len().try_into().unwrap();
+                handle.p_vertex_attribute_descriptions = attributes.as_ptr();
+            }
+
             let ptr = &*handle as *const _;
             _vertex_input_state_create_info = Some(handle);
             create_info.p_vertex_input_state = ptr;

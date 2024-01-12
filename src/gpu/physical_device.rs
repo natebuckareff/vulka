@@ -174,6 +174,14 @@ impl PhysicalDevice {
         }
         image_count
     }
+
+    pub fn get_memory_properties(&self) -> vk::PhysicalDeviceMemoryProperties {
+        unsafe {
+            self.gpu_instance
+                .get_ash_handle()
+                .get_physical_device_memory_properties(self.vk_phy_device)
+        }
+    }
 }
 
 impl HasRawVkHandle<vk::PhysicalDevice> for PhysicalDevice {

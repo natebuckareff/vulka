@@ -1,6 +1,5 @@
-use super::{
-    Device, Framebuffer, HasRawAshHandle, HasRawVkHandle, Pipeline, QueueFamily, RenderPass,
-};
+use super::{Buffer, Device, Framebuffer, Pipeline, QueueFamily, RenderPass};
+use super::{HasRawAshHandle, HasRawVkHandle};
 use ash::vk;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -180,6 +179,19 @@ impl CommandBuffer {
                 self.vk_command_buffer,
                 first_scissor,
                 scissors,
+            );
+        }
+    }
+
+    pub fn bind_buffer(&self, first_binding: u32, buffers: &[(&Buffer, u64)]) -> () {
+        unsafe {
+            let vk_buffer: Vec<_> = buffers.iter().map(|x| x.0.get_vk_handle()).collect();
+            let vk_offsets: Vec<_> = buffers.iter().map(|x| x.1).collect();
+            self.pool.device.get_ash_handle().cmd_bind_vertex_buffers(
+                self.vk_command_buffer,
+                first_binding,
+                &vk_buffer,
+                vk_offsets.as_slice(),
             );
         }
     }
