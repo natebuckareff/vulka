@@ -183,7 +183,24 @@ impl CommandBuffer {
         }
     }
 
-    pub fn bind_buffer(&self, first_binding: u32, buffers: &[(&Buffer, u64)]) -> () {
+    pub fn bind_index_buffer(
+        &self,
+        buffer: &Buffer,
+        offset: vk::DeviceSize,
+        index_type: vk::IndexType,
+    ) -> () {
+        unsafe {
+            self.pool.device.get_ash_handle().cmd_bind_index_buffer(
+                self.vk_command_buffer,
+                buffer.get_vk_handle(),
+                offset,
+                index_type,
+            );
+        }
+    }
+
+    // TODO: u64's should be vk::DeviceSize
+    pub fn bind_vertex_buffers(&self, first_binding: u32, buffers: &[(&Buffer, u64)]) -> () {
         unsafe {
             let vk_buffer: Vec<_> = buffers.iter().map(|x| x.0.get_vk_handle()).collect();
             let vk_offsets: Vec<_> = buffers.iter().map(|x| x.1).collect();
@@ -209,6 +226,26 @@ impl CommandBuffer {
                 vertex_count,
                 instance_count,
                 first_vertex,
+                first_instance,
+            );
+        }
+    }
+
+    pub fn draw_indexed(
+        &self,
+        index_count: u32,
+        instance_count: u32,
+        first_index: u32,
+        vertex_offset: i32,
+        first_instance: u32,
+    ) -> () {
+        unsafe {
+            self.pool.device.get_ash_handle().cmd_draw_indexed(
+                self.vk_command_buffer,
+                index_count,
+                instance_count,
+                first_index,
+                vertex_offset,
                 first_instance,
             );
         }

@@ -18,6 +18,8 @@ pub struct RenderContext {
     render_pass: Arc<RenderPass>,
     graphics_pipeline: Arc<GraphicsPipeline>,
     framebuffers: Vec<Arc<Framebuffer>>,
+    indices: Vec<u16>,
+    index_buffer: Buffer,
     vertex_buffers: Vec<Buffer>,
     cmd_pool: Rc<CommandPool>,
     render_frames: Vec<RenderFrame>,
@@ -186,12 +188,15 @@ impl RenderContext {
             vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
         );
 
+        let indices: Vec<u16> = vec![0, 1, 2, 2, 3, 0];
+
         #[rustfmt::skip]
-            let vertices = [
-                Vertex { position:[ 0.0, -0.5], color:[1.0, 0.0, 1.0] },
-                Vertex { position:[ 0.5,  0.5], color:[0.0, 1.0, 1.0] },
-                Vertex { position:[-0.5,  0.5], color:[0.0, 0.0, 1.0] },
-            ];
+        let vertices = [
+            Vertex { position: [-0.5, -0.5], color: [1.0, 0.0, 0.0] },
+            Vertex { position: [ 0.5, -0.5], color: [0.0, 1.0, 0.0] },
+            Vertex { position: [ 0.5,  0.5], color: [0.0, 0.0, 1.0] },
+            Vertex { position: [-0.5,  0.5], color: [1.0, 1.0, 1.0] }
+        ];
 
         let vertex_bindings = vk::VertexInputBindingDescription {
             binding: 0,
@@ -213,6 +218,45 @@ impl RenderContext {
                 offset: offset_of!(Vertex, color).try_into().unwrap(),
             },
         ];
+
+        let index_buffer = {
+            let buffer_size = size_of::<u16>() * indices.len();
+
+            let mut staging_buffer =
+                Buffer::new(&device, buffer_size, vk::BufferUsageFlags::TRANSFER_SRC);
+
+            staging_buffer.allocate(
+                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            );
+
+            staging_buffer.copy_nonoverlapping(&indices);
+
+            let mut index_buffer = Buffer::new(
+                &device,
+                buffer_size,
+                vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER,
+            );
+
+            index_buffer.allocate(vk::MemoryPropertyFlags::DEVICE_LOCAL);
+
+            let xfer_cmd_buf = cmd_pool.allocate_one(vk::CommandBufferLevel::PRIMARY);
+            xfer_cmd_buf.begin(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+            xfer_cmd_buf.copy_buffer(
+                &staging_buffer,
+                &index_buffer,
+                &[vk::BufferCopy {
+                    src_offset: 0,
+                    dst_offset: 0,
+                    size: buffer_size.try_into().unwrap(),
+                }],
+            );
+            xfer_cmd_buf.end();
+
+            graphics_queue.submit(None, &[&xfer_cmd_buf], None, None);
+            graphics_queue.wait_idle();
+
+            index_buffer
+        };
 
         let vertex_buffers = {
             let buffer_size = size_of::<Vertex>() * vertices.len();
@@ -280,6 +324,8 @@ impl RenderContext {
             render_pass,
             graphics_pipeline,
             framebuffers,
+            indices,
+            index_buffer,
             vertex_buffers,
             cmd_pool,
             render_frames: vec![],
@@ -589,8 +635,14 @@ impl RenderFrame {
             vertex_buffers.push((x, 0u64));
         }
 
-        self.cmd_buf.bind_buffer(0, &vertex_buffers);
-        self.cmd_buf.draw(3, 1, 0, 0);
+        self.cmd_buf
+            .bind_index_buffer(&context.index_buffer, 0, vk::IndexType::UINT16);
+
+        self.cmd_buf.bind_vertex_buffers(0, &vertex_buffers);
+
+        self.cmd_buf
+            .draw_indexed(context.indices.len().try_into().unwrap(), 1, 0, 0, 0);
+
         self.cmd_buf.end_render_pass();
         self.cmd_buf.end();
     }
