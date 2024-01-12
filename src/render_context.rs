@@ -178,6 +178,14 @@ impl RenderContext {
 
         let pipeline_layout = PipelineLayout::new(&device, None, None);
 
+        let graphics_queue = device.get_first_queue(vk::QueueFlags::GRAPHICS).unwrap();
+
+        let cmd_pool = CommandPool::new(
+            &device,
+            graphics_queue.queue_family(),
+            vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
+        );
+
         #[rustfmt::skip]
             let vertices = [
                 Vertex { position:[ 0.0, -0.5], color:[1.0, 0.0, 1.0] },
@@ -206,19 +214,44 @@ impl RenderContext {
             },
         ];
 
-        let mut vertex_buffer = Buffer::new(
-            &device,
-            size_of::<Vertex>() * vertices.len(),
-            vk::BufferUsageFlags::VERTEX_BUFFER,
-        );
+        let vertex_buffers = {
+            let buffer_size = size_of::<Vertex>() * vertices.len();
 
-        vertex_buffer.allocate(
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
+            let mut staging_buffer =
+                Buffer::new(&device, buffer_size, vk::BufferUsageFlags::TRANSFER_SRC);
 
-        vertex_buffer.copy_nonoverlapping(&vertices);
+            staging_buffer.allocate(
+                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            );
 
-        let vertex_buffers = vec![vertex_buffer];
+            staging_buffer.copy_nonoverlapping(&vertices);
+
+            let mut vertex_buffer = Buffer::new(
+                &device,
+                buffer_size,
+                vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER,
+            );
+
+            vertex_buffer.allocate(vk::MemoryPropertyFlags::DEVICE_LOCAL);
+
+            let xfer_cmd_buf = cmd_pool.allocate_one(vk::CommandBufferLevel::PRIMARY);
+            xfer_cmd_buf.begin(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+            xfer_cmd_buf.copy_buffer(
+                &staging_buffer,
+                &vertex_buffer,
+                &[vk::BufferCopy {
+                    src_offset: 0,
+                    dst_offset: 0,
+                    size: buffer_size.try_into().unwrap(),
+                }],
+            );
+            xfer_cmd_buf.end();
+
+            graphics_queue.submit(None, &[&xfer_cmd_buf], None, None);
+            graphics_queue.wait_idle();
+
+            vec![vertex_buffer]
+        };
 
         let graphics_pipeline = GraphicsPipeline::new(
             &device,
@@ -237,14 +270,6 @@ impl RenderContext {
         let framebuffers = RenderContext::_create_framebuffers(&swapchain, &render_pass);
 
         println!("framebuffers.len() = {}", framebuffers.len());
-
-        let graphics_queue = device.get_first_queue(vk::QueueFlags::GRAPHICS).unwrap();
-
-        let cmd_pool = CommandPool::new(
-            &device,
-            graphics_queue.queue_family(),
-            vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
-        );
 
         let mut render_context = Self {
             instance,
@@ -485,10 +510,10 @@ impl RenderFrame {
         let present_queue = context.device.get_first_present_queue().unwrap();
 
         graphics_queue.submit(
-            &[(
+            Some(&[(
                 &self.image_available,
                 vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            )],
+            )]),
             &[&self.cmd_buf],
             Some(&[&self.render_finished]),
             Some(&self.in_flight),

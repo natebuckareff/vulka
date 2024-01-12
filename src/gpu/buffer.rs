@@ -95,16 +95,12 @@ impl Buffer {
             let ash_device = self.device.get_ash_handle();
 
             let memory = self.vk_memory.unwrap();
-            let offset: u64 = 0;
+            let offset: vk::DeviceSize = 0;
             let size = size_of::<T>() * src.len();
+            let vk_size: vk::DeviceSize = size.try_into().unwrap();
 
             let dst = ash_device
-                .map_memory(
-                    memory,
-                    offset,
-                    size.try_into().unwrap(),
-                    vk::MemoryMapFlags::empty(),
-                )
+                .map_memory(memory, offset, vk_size, vk::MemoryMapFlags::empty())
                 .expect("failed to map memory");
 
             std::ptr::copy_nonoverlapping(src.as_ptr() as *const c_void, dst, size);

@@ -40,7 +40,7 @@ impl Queue {
 
     pub fn submit(
         &self,
-        wait: &[(&Semaphore, vk::PipelineStageFlags)],
+        wait: Option<&[(&Semaphore, vk::PipelineStageFlags)]>,
         command_buffers: &[&CommandBuffer],
         signal: Option<&[&Semaphore]>,
         fence: Option<&Fence>,
@@ -67,7 +67,7 @@ impl Queue {
         let mut vk_signal_semaphores: Vec<vk::Semaphore>;
 
         unsafe {
-            if wait.len() > 0 {
+            if let Some(wait) = wait {
                 vk_wait_semaphores = vec![];
                 vk_wait_semaphores.reserve(wait.len());
 
@@ -162,6 +162,15 @@ impl Queue {
                 .get_ash_handle()
                 .queue_present(self.vk_queue, &info)
         }
+    }
+
+    pub fn wait_idle(&self) -> () {
+        unsafe {
+            self.device
+                .get_ash_handle()
+                .queue_wait_idle(self.vk_queue)
+                .expect("failed to wait for queue to idle")
+        };
     }
 }
 

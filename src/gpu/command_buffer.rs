@@ -233,6 +233,17 @@ impl CommandBuffer {
         }
     }
 
+    pub fn copy_buffer(&self, src: &Buffer, dst: &Buffer, regions: &[vk::BufferCopy]) -> () {
+        unsafe {
+            self.pool.device.get_ash_handle().cmd_copy_buffer(
+                self.vk_command_buffer,
+                src.get_vk_handle(),
+                dst.get_vk_handle(),
+                regions,
+            );
+        }
+    }
+
     pub fn reset(&self) -> () {
         unsafe {
             self.pool
@@ -247,5 +258,16 @@ impl CommandBuffer {
 impl HasRawVkHandle<vk::CommandBuffer> for CommandBuffer {
     unsafe fn get_vk_handle(&self) -> vk::CommandBuffer {
         self.vk_command_buffer
+    }
+}
+
+impl Drop for CommandBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            self.pool
+                .device
+                .get_ash_handle()
+                .free_command_buffers(self.pool.vk_command_pool, &[self.vk_command_buffer]);
+        }
     }
 }
