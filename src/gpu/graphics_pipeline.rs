@@ -14,14 +14,14 @@ pub trait Pipeline {
 impl GraphicsPipeline {
     pub fn new(
         device: &Arc<Device>,
-        shader_modules: &Vec<Arc<ShaderModule>>,
+        shader_modules: &[Arc<ShaderModule>],
         vertex_bindings: Option<&[vk::VertexInputBindingDescription]>,
         vertex_attributes: Option<&[vk::VertexInputAttributeDescription]>,
-        dynamic_states: &Vec<vk::DynamicState>,
+        dynamic_states: &[vk::DynamicState],
         topology: vk::PrimitiveTopology,
         primitive_restart: bool,
-        _viewports: Option<&Vec<vk::Viewport>>,
-        _scissors: Option<&Vec<vk::Rect2D>>,
+        _viewports: Option<&[vk::Viewport]>,
+        _scissors: Option<&[vk::Rect2D]>,
         pipeline_layout: &Arc<PipelineLayout>,
         render_pass: &Arc<RenderPass>,
     ) -> Arc<GraphicsPipeline> {

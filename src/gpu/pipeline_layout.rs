@@ -10,8 +10,8 @@ pub struct PipelineLayout {
 impl PipelineLayout {
     pub fn new(
         device: &Arc<Device>,
-        descriptor_set_layouts: Option<&Vec<()>>,
-        push_constant_ranges: Option<&Vec<vk::PushConstantRange>>,
+        descriptor_set_layouts: Option<&[()]>,
+        push_constant_ranges: Option<&[vk::PushConstantRange]>,
     ) -> Arc<PipelineLayout> {
         let mut pipeline_layout_create_info = vk::PipelineLayoutCreateInfo {
             s_type: vk::StructureType::PIPELINE_LAYOUT_CREATE_INFO,

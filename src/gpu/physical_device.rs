@@ -19,10 +19,10 @@ pub struct PhysicalDevice {
 impl PhysicalDevice {
     pub fn new(
         vk_phy_device: vk::PhysicalDevice,
-        gpu_instance: &Arc<Instance>,
+        gpu_instance: Arc<Instance>,
     ) -> Arc<PhysicalDevice> {
         Arc::new(PhysicalDevice {
-            gpu_instance: gpu_instance.clone(),
+            gpu_instance: gpu_instance,
             vk_phy_device,
             properties: OnceCell::new(),
             extension_properties: OnceCell::new(),
@@ -36,8 +36,8 @@ impl PhysicalDevice {
 
     pub fn get_device(
         self: &Arc<PhysicalDevice>,
-        queue_family_indices: &Vec<u32>,
-        enabled_extensions: &Vec<String>,
+        queue_family_indices: &[u32],
+        enabled_extensions: &[&str],
     ) -> Arc<Device> {
         Device::new(
             self,
@@ -55,7 +55,7 @@ impl PhysicalDevice {
         })
     }
 
-    fn _get_device_extension_properties(&self) -> &Vec<vk::ExtensionProperties> {
+    fn _get_device_extension_properties(&self) -> &[vk::ExtensionProperties] {
         self.extension_properties.get_or_init(|| unsafe {
             self.gpu_instance
                 .get_ash_handle()
@@ -80,7 +80,7 @@ impl PhysicalDevice {
         self._get_physical_device_properties().device_type
     }
 
-    pub fn extension_names(&self) -> &Vec<String> {
+    pub fn extension_names(&self) -> &[String] {
         self.extension_names.get_or_init(|| {
             let mut extension_names = vec![];
             for x in self._get_device_extension_properties() {
@@ -90,8 +90,8 @@ impl PhysicalDevice {
         })
     }
 
-    pub fn extension_name_hashset(&self) -> HashSet<&String> {
-        HashSet::from_iter(self.extension_names())
+    pub fn extension_name_hashset(&self) -> HashSet<&str> {
+        HashSet::from_iter(self.extension_names().iter().map(String::as_str))
     }
 
     pub fn get_queue_family_properties(&self) -> Vec<vk::QueueFamilyProperties> {

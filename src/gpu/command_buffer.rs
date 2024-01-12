@@ -59,7 +59,7 @@ impl CommandPool {
                 .unwrap()[0]
         };
 
-        CommandBuffer::new(self, vk_command_buffer)
+        CommandBuffer::new(self.clone(), vk_command_buffer)
     }
 }
 
@@ -85,9 +85,9 @@ pub struct CommandBuffer {
 }
 
 impl CommandBuffer {
-    pub fn new(pool: &Rc<CommandPool>, vk_command_buffer: vk::CommandBuffer) -> Self {
+    pub fn new(pool: Rc<CommandPool>, vk_command_buffer: vk::CommandBuffer) -> Self {
         Self {
-            pool: pool.clone(),
+            pool,
             vk_command_buffer,
         }
     }
@@ -150,10 +150,9 @@ impl CommandBuffer {
         }
     }
 
-    pub fn bind_pipeline(
-        &self,
-        pipeline: &Arc<impl Pipeline + HasRawVkHandle<vk::Pipeline>>,
-    ) -> () {
+    pub fn bind_pipeline<T>(&self, pipeline: &T) -> ()
+        where T:  Pipeline + HasRawVkHandle<vk::Pipeline>
+    {
         unsafe {
             self.pool.device.get_ash_handle().cmd_bind_pipeline(
                 self.vk_command_buffer,
