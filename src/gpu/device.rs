@@ -1,7 +1,7 @@
 use super::{Fence, HasRawAshHandle, HasRawVkHandle, PhysicalDevice, Queue, Swapchain};
 use ash::vk;
 use std::cell::OnceCell;
-use std::ffi::CString;
+use std::ffi::CStr;
 use std::sync::{Arc, Weak};
 
 pub struct Device {
@@ -16,7 +16,7 @@ impl Device {
         gpu_phy_device: &Arc<PhysicalDevice>,
         vk_phy_device: vk::PhysicalDevice,
         queue_family_indices: &[u32],
-        enabled_extensions: &[&str],
+        enabled_extensions: &[&[u8]],
     ) -> Arc<Device> {
         // Get the filtered list of queue families
         let queue_family_properties = gpu_phy_device.get_queue_family_properties();
@@ -32,14 +32,9 @@ impl Device {
             queue_create_infos.push(unsafe { queue_family.get_device_queue_create_info() });
         }
 
-        let enabled_extensions_cstrs = enabled_extensions
+        let enabled_extensions_ptrs = enabled_extensions
             .iter()
-            .map(|x| CString::new(Vec::from(x.as_bytes())).unwrap())
-            .collect::<Vec<_>>();
-
-        let enabled_extensions_ptrs = enabled_extensions_cstrs
-            .iter()
-            .map(|x| x.as_ptr())
+            .map(|x| CStr::from_bytes_with_nul(x).unwrap().as_ptr())
             .collect::<Vec<_>>();
 
         let enabled_features = vk::PhysicalDeviceFeatures {
