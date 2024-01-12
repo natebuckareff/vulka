@@ -20,7 +20,7 @@ pub struct ShaderModule {
 
 impl ShaderModule {
     pub fn new(
-        device: &Arc<Device>,
+        device: Arc<Device>,
         compiler: &shaderc::Compiler,
         source: &str,
         kind: ShaderKind,
@@ -55,7 +55,7 @@ impl ShaderModule {
         };
 
         Arc::new(ShaderModule {
-            device: device.clone(),
+            device,
             vk_shader_module,
             kind,
             entry_point,

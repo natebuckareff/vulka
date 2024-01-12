@@ -105,17 +105,17 @@ impl Device {
 
     // TODO
     pub fn get_swapchain(
-        self: &Arc<Device>,
+        self: Arc<Device>,
         min_image_count: u32,
         image_format: vk::Format,
         image_color_space: vk::ColorSpaceKHR,
         image_extent: vk::Extent2D,
         image_usage: vk::ImageUsageFlags,
         present_mode: vk::PresentModeKHR,
-        old_swapchain: Option<&Arc<Swapchain>>,
-    ) -> Arc<Swapchain> {
+        old_swapchain: Option<&Swapchain>,
+    ) -> Swapchain {
         Swapchain::new(
-            self,
+            self.clone(),
             min_image_count,
             image_format,
             image_color_space,

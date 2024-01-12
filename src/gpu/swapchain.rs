@@ -13,15 +13,15 @@ pub struct Swapchain {
 
 impl Swapchain {
     pub fn new(
-        gpu_device: &Arc<Device>,
+        gpu_device: Arc<Device>,
         min_image_count: u32,
         image_format: vk::Format,
         image_color_space: vk::ColorSpaceKHR,
         image_extent: vk::Extent2D,
         image_usage: vk::ImageUsageFlags,
         present_mode: vk::PresentModeKHR,
-        old_swapchain: Option<&Arc<Swapchain>>,
-    ) -> Arc<Swapchain> {
+        old_swapchain: Option<&Swapchain>,
+    ) -> Swapchain {
         // TODO: Assumes that graphics and presentation queues are the same,
         // which will usually be the case. Should check if they're different and
         // use `vk::SharingMode::CONCURRENT` and pass in `pQueueFamilyIndices`
@@ -71,14 +71,14 @@ impl Swapchain {
                 .expect("failed to create swapchain")
         };
 
-        Arc::new(Swapchain {
-            gpu_device: gpu_device.clone(),
+        Swapchain {
+            gpu_device,
             vk_swapchain,
             ash_swapchain_fn,
             format: image_format,
             extent: image_extent,
             images: OnceCell::new(),
-        })
+        }
     }
 
     pub fn device(&self) -> &Arc<Device> {

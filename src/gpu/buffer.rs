@@ -10,7 +10,7 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn new(device: &Arc<Device>, size: usize, usage: vk::BufferUsageFlags) -> Self {
+    pub fn new(device: Arc<Device>, size: usize, usage: vk::BufferUsageFlags) -> Self {
         let create_info = vk::BufferCreateInfo {
             s_type: vk::StructureType::BUFFER_CREATE_INFO,
             p_next: std::ptr::null(),
@@ -30,7 +30,7 @@ impl Buffer {
         };
 
         Self {
-            device: device.clone(),
+            device: device,
             vk_buffer,
             vk_memory: None,
         }

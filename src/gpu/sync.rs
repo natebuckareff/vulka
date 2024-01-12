@@ -8,7 +8,7 @@ pub struct Semaphore {
 }
 
 impl Semaphore {
-    pub fn new(device: &Arc<Device>) -> Self {
+    pub fn new(device: Arc<Device>) -> Self {
         let vk_semaphore = unsafe {
             device
                 .get_ash_handle()
@@ -16,7 +16,7 @@ impl Semaphore {
                 .expect("failed to create semaphore")
         };
         Self {
-            device: device.clone(),
+            device,
             vk_semaphore,
         }
     }
@@ -44,7 +44,7 @@ pub struct Fence {
 }
 
 impl Fence {
-    pub fn new(device: &Arc<Device>) -> Self {
+    pub fn new(device: Arc<Device>) -> Self {
         let vk_fence = unsafe {
             device
                 .get_ash_handle()
@@ -52,12 +52,12 @@ impl Fence {
                 .expect("failed to create fence")
         };
         Self {
-            device: device.clone(),
+            device,
             vk_fence,
         }
     }
 
-    pub fn signaled(device: &Arc<Device>) -> Self {
+    pub fn signaled(device: Arc<Device>) -> Self {
         let vk_fence = unsafe {
             device
                 .get_ash_handle()
@@ -71,7 +71,7 @@ impl Fence {
                 .expect("failed to create fence")
         };
         Self {
-            device: device.clone(),
+            device,
             vk_fence,
         }
     }
