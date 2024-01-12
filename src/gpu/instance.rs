@@ -90,7 +90,7 @@ impl Instance {
         &self.surface
     }
 
-    fn _get_physical_device_handles(&self) -> &Vec<vk::PhysicalDevice> {
+    fn _get_physical_device_handles(&self) -> &[vk::PhysicalDevice] {
         self.vk_physical_devices
             .get_or_init(|| unsafe { self.ash_instance.enumerate_physical_devices().unwrap() })
     }
@@ -98,7 +98,7 @@ impl Instance {
     pub fn get_physical_devices(self: &Arc<Instance>) -> Vec<Arc<PhysicalDevice>> {
         self._get_physical_device_handles()
             .iter()
-            .map(|vk_phy_device| PhysicalDevice::new(*vk_phy_device, self))
+            .map(|vk_phy_device| PhysicalDevice::new(*vk_phy_device, self.clone()))
             .collect()
     }
 }

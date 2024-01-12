@@ -93,7 +93,7 @@ impl Swapchain {
         &self.extent
     }
 
-    pub fn images(&self) -> &Vec<Arc<Image>> {
+    pub fn images(&self) -> &[Arc<Image>] {
         self.images.get_or_init(|| unsafe {
             self.ash_swapchain_fn
                 .get_swapchain_images(self.vk_swapchain)

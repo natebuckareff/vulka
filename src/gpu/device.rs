@@ -15,8 +15,8 @@ impl Device {
     pub fn new(
         gpu_phy_device: &Arc<PhysicalDevice>,
         vk_phy_device: vk::PhysicalDevice,
-        queue_family_indices: &Vec<u32>,
-        enabled_extensions: &Vec<String>,
+        queue_family_indices: &[u32],
+        enabled_extensions: &[&str],
     ) -> Arc<Device> {
         // Get the filtered list of queue families
         let queue_family_properties = gpu_phy_device.get_queue_family_properties();
@@ -33,8 +33,8 @@ impl Device {
         }
 
         let enabled_extensions_cstrs = enabled_extensions
-            .into_iter()
-            .map(|x| CString::new(x.clone()).unwrap())
+            .iter()
+            .map(|x| CString::new(Vec::from(x.as_bytes())).unwrap())
             .collect::<Vec<_>>();
 
         let enabled_extensions_ptrs = enabled_extensions_cstrs
@@ -175,14 +175,10 @@ pub struct QueueFamilyConfig {
 
 impl QueueFamilyConfig {
     pub fn new(index: u32, properties: vk::QueueFamilyProperties) -> QueueFamilyConfig {
-        let mut priorities: Vec<f32> = vec![];
-        for _ in 0..properties.queue_count {
-            priorities.push(1.0);
-        }
         QueueFamilyConfig {
             index,
             properties,
-            priorities,
+            priorities: vec![1.0; properties.queue_count as usize],
         }
     }
 
@@ -226,7 +222,7 @@ impl QueueFamily {
         &self.config.properties
     }
 
-    pub fn priorities(&self) -> &Vec<f32> {
+    pub fn priorities(&self) -> &[f32] {
         &self.config.priorities
     }
 
@@ -247,7 +243,7 @@ impl QueueFamily {
                     .get_ash_handle()
                     .get_device_queue(family_index, index)
             };
-            Queue::new(&device_arc, family_index, vk_queue, index)
+            Queue::new(device_arc, family_index, vk_queue, index)
         })
     }
 }

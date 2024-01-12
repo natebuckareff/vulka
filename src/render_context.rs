@@ -44,9 +44,9 @@ impl RenderContext {
 
         let required_queue_flags = vec![vk::QueueFlags::GRAPHICS];
 
-        let required_extensions: Vec<String> = vec![
-            // String::from("VK_EXT_debug_utils"),
-            String::from("VK_KHR_swapchain"),
+        let required_extensions = &[
+            // "VK_EXT_debug_utils",
+            "VK_KHR_swapchain",
         ];
 
         // Find the first physical device that supports the swapchain extension
@@ -77,12 +77,7 @@ impl RenderContext {
                 // Filter for physical devices that support all of the required
                 // extensions
                 let extensions_hashset = x.extension_name_hashset();
-                for x in &required_extensions {
-                    if !extensions_hashset.contains(x) {
-                        return false;
-                    }
-                }
-                true
+                required_extensions.iter().all(|ext| extensions_hashset.contains(ext))
             })
             .unwrap();
 
@@ -116,7 +111,7 @@ impl RenderContext {
             }
         }
 
-        let device = physical_device.get_device(&queue_family_indices, &required_extensions);
+        let device = physical_device.get_device(&queue_family_indices, required_extensions);
 
         let swapchain = {
             let inner_size = window.inner_size();
@@ -608,7 +603,7 @@ impl RenderFrame {
             vk::SubpassContents::INLINE,
         );
 
-        self.cmd_buf.bind_pipeline(&context.graphics_pipeline);
+        self.cmd_buf.bind_pipeline(context.graphics_pipeline.as_ref());
 
         self.cmd_buf.set_viewport(
             0,

@@ -12,13 +12,13 @@ pub struct Queue {
 
 impl Queue {
     pub fn new(
-        device: &Arc<Device>,
+        device: Arc<Device>,
         family_index: u32,
         vk_queue: vk::Queue,
         index: u32,
     ) -> Arc<Queue> {
         Arc::new(Queue {
-            device: device.clone(),
+            device,
             family_index,
             vk_queue,
             index,
