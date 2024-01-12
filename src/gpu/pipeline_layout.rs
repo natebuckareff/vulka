@@ -1,19 +1,20 @@
-use super::{Device, HasRawAshHandle, HasRawVkHandle};
+use super::{DescriptorSetLayout, Device, HasRawAshHandle, HasRawVkHandle};
 use ash::vk;
 use std::sync::Arc;
 
 pub struct PipelineLayout {
     device: Arc<Device>,
+    descriptor_set_layouts: Box<[Arc<DescriptorSetLayout>]>,
     vk_pipeline_layout: vk::PipelineLayout,
 }
 
 impl PipelineLayout {
     pub fn new(
-        device: &Arc<Device>,
-        descriptor_set_layouts: Option<&[()]>,
-        push_constant_ranges: Option<&[vk::PushConstantRange]>,
+        device: Arc<Device>,
+        descriptor_set_layouts: &[Arc<DescriptorSetLayout>],
+        push_constant_ranges: &[vk::PushConstantRange],
     ) -> Arc<PipelineLayout> {
-        let mut pipeline_layout_create_info = vk::PipelineLayoutCreateInfo {
+        let mut info = vk::PipelineLayoutCreateInfo {
             s_type: vk::StructureType::PIPELINE_LAYOUT_CREATE_INFO,
             p_next: std::ptr::null(),
             flags: vk::PipelineLayoutCreateFlags::empty(),
@@ -23,26 +24,32 @@ impl PipelineLayout {
             p_push_constant_ranges: std::ptr::null(),
         };
 
-        if let Some(_descriptor_set_layouts) = descriptor_set_layouts {
-            todo!()
-        }
-
-        if let Some(push_constant_ranges) = push_constant_ranges {
-            pipeline_layout_create_info.push_constant_range_count =
-                push_constant_ranges.len().try_into().unwrap();
-
-            pipeline_layout_create_info.p_push_constant_ranges = push_constant_ranges.as_ptr();
-        }
-
         let vk_pipeline_layout = unsafe {
+            let vk_set_layouts;
+            if descriptor_set_layouts.len() > 0 {
+                vk_set_layouts = descriptor_set_layouts
+                    .iter()
+                    .map(|x| x.get_vk_handle())
+                    .collect::<Vec<_>>();
+
+                info.set_layout_count = vk_set_layouts.len().try_into().unwrap();
+                info.p_set_layouts = vk_set_layouts.as_ptr();
+            }
+
+            if push_constant_ranges.len() > 0 {
+                info.push_constant_range_count = push_constant_ranges.len().try_into().unwrap();
+                info.p_push_constant_ranges = push_constant_ranges.as_ptr();
+            }
+
             device
                 .get_ash_handle()
-                .create_pipeline_layout(&pipeline_layout_create_info, None)
+                .create_pipeline_layout(&info, None)
                 .expect("failed to create pipeline layout")
         };
 
         Arc::new(PipelineLayout {
-            device: device.clone(),
+            device,
+            descriptor_set_layouts: descriptor_set_layouts.into(),
             vk_pipeline_layout,
         })
     }

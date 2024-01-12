@@ -1,4 +1,6 @@
-use super::{Buffer, Device, Framebuffer, Pipeline, QueueFamily, RenderPass};
+use super::{
+    Buffer, DescriptorSet, Device, Framebuffer, Pipeline, PipelineLayout, QueueFamily, RenderPass,
+};
 use super::{HasRawAshHandle, HasRawVkHandle};
 use ash::vk;
 use std::rc::Rc;
@@ -151,7 +153,8 @@ impl CommandBuffer {
     }
 
     pub fn bind_pipeline<T>(&self, pipeline: &T) -> ()
-        where T:  Pipeline + HasRawVkHandle<vk::Pipeline>
+    where
+        T: Pipeline + HasRawVkHandle<vk::Pipeline>,
     {
         unsafe {
             self.pool.device.get_ash_handle().cmd_bind_pipeline(
@@ -208,6 +211,30 @@ impl CommandBuffer {
                 first_binding,
                 &vk_buffer,
                 vk_offsets.as_slice(),
+            );
+        }
+    }
+
+    pub fn bind_descriptor_sets(
+        &self,
+        pipeline_bind_point: vk::PipelineBindPoint,
+        layout: &PipelineLayout,
+        first_set: u32,
+        descriptor_sets: &[&DescriptorSet],
+    ) {
+        unsafe {
+            let vk_descriptor_sets = descriptor_sets
+                .iter()
+                .map(|x| x.get_vk_handle())
+                .collect::<Box<_>>();
+
+            self.pool.device.get_ash_handle().cmd_bind_descriptor_sets(
+                self.vk_command_buffer,
+                pipeline_bind_point,
+                layout.get_vk_handle(),
+                first_set,
+                &vk_descriptor_sets,
+                &[],
             );
         }
     }

@@ -1,5 +1,6 @@
 mod buffer;
 mod command_buffer;
+mod descriptor_set;
 mod device;
 mod framebuffer;
 mod graphics_pipeline;
@@ -17,6 +18,7 @@ mod sync;
 
 pub use buffer::*;
 pub use command_buffer::*;
+pub use descriptor_set::*;
 pub use device::*;
 pub use framebuffer::*;
 pub use graphics_pipeline::*;

@@ -32,7 +32,12 @@ impl Device {
             queue_create_infos.push(unsafe { queue_family.get_device_queue_create_info() });
         }
 
-        let enabled_extensions_ptrs = enabled_extensions
+        let enabled_extensions_nul = enabled_extensions
+            .iter()
+            .map(|x| [x, b"\0".as_slice()].concat())
+            .collect::<Vec<_>>();
+
+        let enabled_extensions_ptrs = enabled_extensions_nul
             .iter()
             .map(|x| CStr::from_bytes_with_nul(x).unwrap().as_ptr())
             .collect::<Vec<_>>();

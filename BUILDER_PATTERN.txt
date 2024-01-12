@@ -1,0 +1,88 @@
+
+let render_pass_builder = RenderPass::builder();
+
+let color_attachment = render_pass_builder
+    .attachment()
+    .format(*swapchain.format())
+    .samples(vk::SampleCountFlags::TYPE_1)
+    .load_op(vk::AttachmentLoadOp::CLEAR)
+    .store_op(vk::AttachmentStoreOp::STORE)
+    .initial_layout(vk::ImageLayout::UNDEFINED)
+    .final_layout(vk::ImageLayout::PRESENT_SRC_KHR);
+
+let subpass_0 = render_pass_builder
+    .subpass()
+    .color(color_attachment, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+
+let render_pass_config = render_pass_builder.config(
+    device,
+    attachments: vec![color_attachment],
+    subpasses: vec![...],
+    dependencies: vec![...],
+);
+
+// ~
+
+let pipeline_layout_builder = PipelineLayout::builder();
+
+let descriptor_set_builder = DescriptorSet::builder();
+
+// Building a graphics pipeline
+
+let gfx_pipeline_builder = GraphicsPipeline::builder();
+
+let vert_shader_stage = gfx_pipeline_builder
+    .shader_stage()
+    .vertex()
+    .flags(...)
+    .module(...)
+    .entry_point(...);
+
+let frag_shader_stage = gfx_pipeline_builder
+    .shader_stage()
+    .fragment()
+    .module(...)
+    .entry_point(...);
+
+let vertex_binding = VertexBinding::builder()
+    .stride(size_of::<Vertex>())
+    .input_rate(vk::VertexInputRate::Vertex)
+    .attribute(0, offset_of(Vertex, position), vk::Format::R32G32_SFLOAT)
+    .attribute(1, offset_of(Vertex, color), vk::Format::R32G32B32_SFLOAT);
+
+let instance_binding = VertexBinding::builder()
+    .stride(size_of::<Instance>())
+    .input_rate(vk::VertexInputRate::Instance)
+    .attribute(0, offset_of(Instance, id), vk::Format::R16_UINT)
+    .attributes(1, offset_of(Instance, model), 4, vk::Format::R32G32B32A32_SFLOAT);
+
+let vertex_input = gfx_pipeline_builder
+    .vertex_input_state()
+    .binding(vertex_binding)
+    .binding(instance_binding)
+    .topology(vk::PrimitiveTopology::TRIANGLE_STRIP)
+    .enable_primitive_restart()
+    .polygon_mode(vk::PolygonMode::FILL)
+    .cull_back()
+    .front_face_cw();
+    
+let depth_stencil = gfx_pipeline_builder
+    .depth_stencil_state()
+    .enable_depth_test()
+    .depth_bounds(0.0, 1.0);
+
+let color_blend = gfx_pipeline_builder
+    .color_blend_state()
+    .attachment(color_attachment, [0.0, 0.0, 0.0, 0.0]);        
+
+// ~
+
+let gfx_pipeline_config = gfx_pipeline_builder.config(
+    shaders: vec![vert_shader_stage, frag_shader_stage],
+    vertex_input,
+    depth_stencil,
+    color_blend,
+    layout: ???,
+    render_pass: ???,
+    subpass: ???,
+);
