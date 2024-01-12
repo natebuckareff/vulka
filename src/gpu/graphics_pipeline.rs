@@ -13,7 +13,7 @@ pub trait Pipeline {
 
 impl GraphicsPipeline {
     pub fn new(
-        device: &Arc<Device>,
+        device: Arc<Device>,
         shader_modules: &[Arc<ShaderModule>],
         vertex_bindings: Option<&[vk::VertexInputBindingDescription]>,
         vertex_attributes: Option<&[vk::VertexInputAttributeDescription]>,
@@ -22,8 +22,8 @@ impl GraphicsPipeline {
         primitive_restart: bool,
         _viewports: Option<&[vk::Viewport]>,
         _scissors: Option<&[vk::Rect2D]>,
-        pipeline_layout: &Arc<PipelineLayout>,
-        render_pass: &Arc<RenderPass>,
+        pipeline_layout: &PipelineLayout,
+        render_pass: &RenderPass,
     ) -> Arc<GraphicsPipeline> {
         let mut create_info = unsafe {
             vk::GraphicsPipelineCreateInfo {
@@ -229,7 +229,7 @@ impl GraphicsPipeline {
         };
 
         Arc::new(GraphicsPipeline {
-            device: device.clone(),
+            device,
             vk_pipeline,
         })
     }

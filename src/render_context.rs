@@ -13,7 +13,7 @@ pub struct RenderContext {
     instance: Arc<Instance>,
     physical_device: Arc<PhysicalDevice>,
     device: Arc<Device>,
-    swapchain: Arc<Swapchain>,
+    swapchain: Swapchain,
     shader_modules: Vec<Arc<ShaderModule>>,
     render_pass: Arc<RenderPass>,
     graphics_pipeline: Arc<GraphicsPipeline>,
@@ -122,7 +122,7 @@ impl RenderContext {
 
         let shader_modules = vec![
             ShaderModule::new(
-                &device,
+                device.clone(),
                 &shader_compiler,
                 include_str!("./shaders/vertex.glsl"),
                 ShaderKind::Vertex,
@@ -131,7 +131,7 @@ impl RenderContext {
                 None,
             ),
             ShaderModule::new(
-                &device,
+                device.clone(),
                 &shader_compiler,
                 include_str!("./shaders/fragment.glsl"),
                 ShaderKind::Fragment,
@@ -178,7 +178,7 @@ impl RenderContext {
         let graphics_queue = device.get_first_queue(vk::QueueFlags::GRAPHICS).unwrap();
 
         let cmd_pool = CommandPool::new(
-            &device,
+            device.clone(),
             graphics_queue.queue_family(),
             vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
         );
@@ -218,7 +218,7 @@ impl RenderContext {
             let buffer_size = size_of::<u16>() * indices.len();
 
             let mut staging_buffer =
-                Buffer::new(&device, buffer_size, vk::BufferUsageFlags::TRANSFER_SRC);
+                Buffer::new(device.clone(), buffer_size, vk::BufferUsageFlags::TRANSFER_SRC);
 
             staging_buffer.allocate(
                 vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
@@ -227,7 +227,7 @@ impl RenderContext {
             staging_buffer.copy_nonoverlapping(&indices);
 
             let mut index_buffer = Buffer::new(
-                &device,
+                device.clone(),
                 buffer_size,
                 vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER,
             );
@@ -257,7 +257,7 @@ impl RenderContext {
             let buffer_size = size_of::<Vertex>() * vertices.len();
 
             let mut staging_buffer =
-                Buffer::new(&device, buffer_size, vk::BufferUsageFlags::TRANSFER_SRC);
+                Buffer::new(device.clone(), buffer_size, vk::BufferUsageFlags::TRANSFER_SRC);
 
             staging_buffer.allocate(
                 vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
@@ -266,7 +266,7 @@ impl RenderContext {
             staging_buffer.copy_nonoverlapping(&vertices);
 
             let mut vertex_buffer = Buffer::new(
-                &device,
+                device.clone(),
                 buffer_size,
                 vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER,
             );
@@ -293,7 +293,7 @@ impl RenderContext {
         };
 
         let graphics_pipeline = GraphicsPipeline::new(
-            &device,
+            device.clone(),
             &shader_modules,
             Some(&[vertex_bindings]),
             Some(&vertex_attributes),
@@ -388,8 +388,8 @@ impl RenderContext {
         device: &Arc<Device>,
         width: u32,
         height: u32,
-        old_swapchain: Option<&Arc<Swapchain>>,
-    ) -> Arc<Swapchain> {
+        old_swapchain: Option<&Swapchain>,
+    ) -> Swapchain {
         let physical_device = device.physical_device();
 
         let SurfaceDetails {
@@ -398,7 +398,7 @@ impl RenderContext {
             extent,
         } = RenderContext::_get_surface_details(physical_device, width, height);
 
-        let swapchain = device.get_swapchain(
+        let swapchain = device.clone().get_swapchain(
             physical_device.get_surface_ideal_image_count(),
             format.format,
             format.color_space,
@@ -412,7 +412,7 @@ impl RenderContext {
     }
 
     fn _create_framebuffers(
-        swapchain: &Arc<Swapchain>,
+        swapchain: &Swapchain,
         render_pass: &Arc<RenderPass>,
     ) -> Vec<Arc<Framebuffer>> {
         let mut framebuffers = vec![];
@@ -495,9 +495,9 @@ impl RenderFrame {
             .cmd_pool
             .allocate_one(vk::CommandBufferLevel::PRIMARY);
 
-        let image_available = Semaphore::new(&context.device);
-        let render_finished = Semaphore::new(&context.device);
-        let in_flight = Fence::signaled(&context.device);
+        let image_available = Semaphore::new(context.device.clone());
+        let render_finished = Semaphore::new(context.device.clone());
+        let in_flight = Fence::signaled(context.device.clone());
 
         Self {
             cmd_buf,

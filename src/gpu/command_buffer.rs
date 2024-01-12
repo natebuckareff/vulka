@@ -11,7 +11,7 @@ pub struct CommandPool {
 
 impl CommandPool {
     pub fn new(
-        device: &Arc<Device>,
+        device: Arc<Device>,
         queue_family: &QueueFamily,
         flags: vk::CommandPoolCreateFlags,
     ) -> Rc<Self> {
@@ -30,7 +30,7 @@ impl CommandPool {
         };
 
         Rc::new(Self {
-            device: device.clone(),
+            device: device,
             vk_command_pool,
         })
     }
