@@ -13,7 +13,7 @@ pub struct PhysicalDevice {
     // for entire lifetime of GpuPhysicalDevice?
     properties: OnceCell<vk::PhysicalDeviceProperties>,
     extension_properties: OnceCell<Vec<vk::ExtensionProperties>>,
-    extension_names: OnceCell<Vec<String>>,
+    extension_names: OnceCell<Vec<Vec<u8>>>,
 }
 
 impl PhysicalDevice {
@@ -79,18 +79,20 @@ impl PhysicalDevice {
         self._get_physical_device_properties().device_type
     }
 
-    pub fn extension_names(&self) -> &[String] {
+    pub fn extension_names(&self) -> &[Vec<u8>] {
         self.extension_names.get_or_init(|| {
             let mut extension_names = vec![];
             for x in self._get_device_extension_properties() {
-                extension_names.push(get_string_from_chars(&x.extension_name));
+                let length = x.extension_name.iter().position(|&ch| ch == 0).unwrap() + 1;
+                let bytes = unsafe { core::slice::from_raw_parts(x.extension_name.as_ptr() as *const u8, length) };
+                extension_names.push(Vec::from(bytes));
             }
             extension_names
         })
     }
 
     pub fn extension_name_hashset(&self) -> HashSet<&[u8]> {
-        HashSet::from_iter(self.extension_names().iter().map(String::as_bytes))
+        HashSet::from_iter(self.extension_names().iter().map(Vec::as_slice))
     }
 
     pub fn get_queue_family_properties(&self) -> Vec<vk::QueueFamilyProperties> {
