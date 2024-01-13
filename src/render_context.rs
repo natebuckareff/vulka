@@ -12,6 +12,7 @@ use crate::gpu::{
 
 pub struct RenderContext {
     start_time: Instant,
+    window: Arc<Window>,
     instance: Arc<Instance>,
     physical_device: Arc<PhysicalDevice>,
     device: Arc<Device>,
@@ -52,7 +53,7 @@ struct Vertex {
 }
 
 impl RenderContext {
-    pub fn new(window: &Arc<Window>, max_frames_in_flight: usize) -> Self {
+    pub fn new(window: Arc<Window>, max_frames_in_flight: usize) -> Self {
         let instance = Instance::new(&window);
 
         let required_queue_flags = &[vk::QueueFlags::GRAPHICS];
@@ -399,6 +400,7 @@ impl RenderContext {
 
         let mut render_context = Self {
             start_time: std::time::Instant::now(),
+            window,
             instance,
             physical_device,
             device,
@@ -705,6 +707,8 @@ impl RenderFrame {
                 _ => panic!("present_result = {:?}", result),
             },
         }
+
+        context.window.request_redraw();
     }
 
     pub fn record_commands(&self, context: &RenderContext, image_index: u32) {

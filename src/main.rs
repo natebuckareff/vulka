@@ -5,12 +5,14 @@ mod render_context;
 use std::sync::Arc;
 use winit::dpi::LogicalSize;
 use winit::event;
+use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::{Key, NamedKey};
-use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
 fn main() {
     let event_loop = EventLoop::new().expect("failed to create event loop");
+
+    event_loop.set_control_flow(ControlFlow::Poll);
 
     let window = Arc::new(
         WindowBuilder::new()
@@ -22,26 +24,26 @@ fn main() {
             .expect("failed to create window"),
     );
 
-    let mut render_context = render_context::RenderContext::new(&window, 2);
+    let mut render_context = render_context::RenderContext::new(window.clone(), 2);
 
-    event_loop.run(move |event, target| match event {
-        event::Event::WindowEvent { event, .. } => match event {
-            event::WindowEvent::CloseRequested => {
-                target.exit()
-            }
-            event::WindowEvent::KeyboardInput { event, .. } => {
-                if event.logical_key == Key::Named(NamedKey::Escape) {
-                    target.exit()
+    event_loop
+        .run(move |event, target| match event {
+            event::Event::WindowEvent { event, .. } => match event {
+                event::WindowEvent::CloseRequested => target.exit(),
+                event::WindowEvent::KeyboardInput { event, .. } => {
+                    if event.logical_key == Key::Named(NamedKey::Escape) {
+                        target.exit()
+                    }
                 }
-            }
-            event::WindowEvent::Resized(inner_size) => {
-                render_context.recreate_swapchain(inner_size.width, inner_size.height);
-            }
+                event::WindowEvent::Resized(inner_size) => {
+                    render_context.recreate_swapchain(inner_size.width, inner_size.height);
+                }
+                event::WindowEvent::RedrawRequested => {
+                    render_context.draw_next_frame();
+                }
+                _ => {}
+            },
             _ => {}
-        },
-        event::Event::AboutToWait => {
-            render_context.draw_next_frame();
-        }
-        _ => {}
-    }).expect("event loop failed")
+        })
+        .expect("event loop failed")
 }
