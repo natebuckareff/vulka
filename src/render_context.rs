@@ -48,8 +48,8 @@ struct Uniform {
 
 #[repr(C)]
 struct Vertex {
-    position: [f32; 2],
-    color: [f32; 3],
+    position: Vec3,
+    color: Vec3,
 }
 
 impl RenderContext {
@@ -265,14 +265,26 @@ impl RenderContext {
             vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
         );
 
-        let indices: Vec<u16> = vec![0, 1, 2, 2, 3, 0];
+        #[rustfmt::skip]
+        let indices: Vec<u16> = vec![
+            0, 2, 1, 2, 0, 3, // z = -0.5
+            4, 5, 6, 6, 7, 4, // z =  0.5
+            0, 1, 4, 5, 4, 1, // y = -0.5
+            2, 3, 6, 7, 6, 3, // y =  0.5
+            3, 0, 4, 4, 7, 3, // x = -0.5
+            1, 2, 5, 5, 2, 6, // x =  0.5
+        ];
 
         #[rustfmt::skip]
         let vertices = [
-            Vertex { position: [-0.5, -0.5], color: [1.0, 0.0, 0.0] },
-            Vertex { position: [ 0.5, -0.5], color: [0.0, 1.0, 0.0] },
-            Vertex { position: [ 0.5,  0.5], color: [0.0, 0.0, 1.0] },
-            Vertex { position: [-0.5,  0.5], color: [1.0, 1.0, 1.0] }
+            /* 0 */ Vertex { position: Vec3::new(-0.5, -0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0) },
+            /* 1 */ Vertex { position: Vec3::new( 0.5, -0.5, -0.5), color: Vec3::new(0.0, 1.0, 0.0) },
+            /* 2 */ Vertex { position: Vec3::new( 0.5,  0.5, -0.5), color: Vec3::new(0.0, 0.0, 1.0) },
+            /* 3 */ Vertex { position: Vec3::new(-0.5,  0.5, -0.5), color: Vec3::new(1.0, 1.0, 1.0) },
+            /* 4 */ Vertex { position: Vec3::new(-0.5, -0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0) },
+            /* 5 */ Vertex { position: Vec3::new( 0.5, -0.5,  0.5), color: Vec3::new(0.0, 1.0, 0.0) },
+            /* 6 */ Vertex { position: Vec3::new( 0.5,  0.5,  0.5), color: Vec3::new(0.0, 0.0, 1.0) },
+            /* 7 */ Vertex { position: Vec3::new(-0.5,  0.5,  0.5), color: Vec3::new(1.0, 1.0, 1.0) },
         ];
 
         let vertex_bindings = vk::VertexInputBindingDescription {
@@ -285,7 +297,7 @@ impl RenderContext {
             vk::VertexInputAttributeDescription {
                 binding: 0,
                 location: 0,
-                format: vk::Format::R32G32_SFLOAT,
+                format: vk::Format::R32G32B32_SFLOAT,
                 offset: offset_of!(Vertex, position).try_into().unwrap(),
             },
             vk::VertexInputAttributeDescription {
@@ -611,7 +623,11 @@ impl RenderFrame {
             extent.width as f32 / extent.height as f32
         };
 
-        let model = Mat4::from_rotation_z(time * 90_f32.to_radians());
+        let model = {
+            let x = Mat4::from_rotation_x(time * 90_f32.to_radians());
+            let y = Mat4::from_rotation_y(time * 90_f32.to_radians());
+            x * y
+        };
 
         let view = Mat4::look_at_rh(
             Vec3::new(2.0, 2.0, 2.0),
