@@ -1,1 +1,1 @@
-![cube][cube.gif]
+![cube](cube.gif)
