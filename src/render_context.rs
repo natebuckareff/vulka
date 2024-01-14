@@ -453,7 +453,7 @@ impl RenderContext {
             .get_surface_present_modes()
             .into_iter()
             .min_by_key(|x| match *x {
-                vk::PresentModeKHR::MAILBOX => 0,
+                vk::PresentModeKHR::FIFO_RELAXED => 0,
                 vk::PresentModeKHR::FIFO => 1,
                 _ => 2,
             })
