@@ -1,3 +1,5 @@
+extern crate ash;
+
 use ash::vk;
 use glam::{f32::Mat4, Vec3};
 use memoffset::offset_of;
@@ -6,8 +8,9 @@ use winit::window::Window;
 
 use crate::gpu::{
     Buffer, CommandBuffer, CommandPool, DescriptorPool, DescriptorSet, DescriptorSetLayout, Device,
-    Fence, Framebuffer, GraphicsPipeline, Instance, PhysicalDevice, PipelineLayout, RenderPass,
-    RenderPassConfig, Semaphore, ShaderKind, ShaderModule, Swapchain,
+    Fence, Framebuffer, GraphicsPipeline, HasRawAshHandle, HasRawVkHandle, Instance,
+    PhysicalDevice, PipelineLayout, RenderPass, RenderPassConfig, Semaphore, ShaderKind,
+    ShaderModule, Swapchain,
 };
 
 pub struct RenderContext {
@@ -16,6 +19,7 @@ pub struct RenderContext {
     instance: Arc<Instance>,
     physical_device: Arc<PhysicalDevice>,
     device: Arc<Device>,
+    allocator: Arc<vma::Allocator>,
     swapchain: Swapchain,
     shader_modules: Vec<Arc<ShaderModule>>,
     render_pass: Arc<RenderPass>,
@@ -129,6 +133,15 @@ impl RenderContext {
 
         let device = physical_device.get_device(&queue_family_indices, required_extensions);
 
+        let allocator = unsafe {
+            let info = vma::AllocatorCreateInfo::new(
+                instance.get_ash_handle(),
+                device.get_ash_handle(),
+                physical_device.get_vk_handle(),
+            );
+            Arc::new(vma::Allocator::new(info).expect("failed to create vma allocator"))
+        };
+
         let swapchain = {
             let inner_size = window.inner_size();
             RenderContext::_create_swapchain(&device, inner_size.width, inner_size.height, None)
@@ -212,14 +225,14 @@ impl RenderContext {
             let mut uniform_buffers = vec![];
 
             for _ in 0..max_frames_in_flight {
-                let mut uniform_buffer = Buffer::new(
+                let uniform_buffer = Buffer::new(
                     device.clone(),
+                    allocator.clone(),
                     buffer_size,
                     vk::BufferUsageFlags::UNIFORM_BUFFER,
-                );
-
-                uniform_buffer.allocate(
-                    vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+                    vma::MemoryUsage::AutoPreferHost,
+                    vma::AllocationCreateFlags::MAPPED
+                        | vma::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE,
                 );
 
                 uniform_buffers.push(uniform_buffer);
@@ -311,25 +324,26 @@ impl RenderContext {
         let index_buffer = {
             let buffer_size = size_of::<u16>() * indices.len();
 
-            let mut staging_buffer = Buffer::new(
+            let staging_buffer = Buffer::new(
                 device.clone(),
+                allocator.clone(),
                 buffer_size,
                 vk::BufferUsageFlags::TRANSFER_SRC,
-            );
-
-            staging_buffer.allocate(
-                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+                vma::MemoryUsage::AutoPreferHost,
+                vma::AllocationCreateFlags::MAPPED
+                    | vma::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE,
             );
 
             staging_buffer.copy_nonoverlapping(&indices);
 
-            let mut index_buffer = Buffer::new(
+            let index_buffer = Buffer::new(
                 device.clone(),
+                allocator.clone(),
                 buffer_size,
                 vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER,
+                vma::MemoryUsage::AutoPreferDevice,
+                vma::AllocationCreateFlags::empty(),
             );
-
-            index_buffer.allocate(vk::MemoryPropertyFlags::DEVICE_LOCAL);
 
             let xfer_cmd_buf = cmd_pool.allocate_one(vk::CommandBufferLevel::PRIMARY);
             xfer_cmd_buf.begin(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
@@ -353,25 +367,26 @@ impl RenderContext {
         let vertex_buffers = {
             let buffer_size = size_of::<Vertex>() * vertices.len();
 
-            let mut staging_buffer = Buffer::new(
+            let staging_buffer = Buffer::new(
                 device.clone(),
+                allocator.clone(),
                 buffer_size,
                 vk::BufferUsageFlags::TRANSFER_SRC,
-            );
-
-            staging_buffer.allocate(
-                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+                vma::MemoryUsage::AutoPreferHost,
+                vma::AllocationCreateFlags::MAPPED
+                    | vma::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE,
             );
 
             staging_buffer.copy_nonoverlapping(&vertices);
 
-            let mut vertex_buffer = Buffer::new(
+            let vertex_buffer = Buffer::new(
                 device.clone(),
+                allocator.clone(),
                 buffer_size,
                 vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER,
+                vma::MemoryUsage::AutoPreferDevice,
+                vma::AllocationCreateFlags::empty(),
             );
-
-            vertex_buffer.allocate(vk::MemoryPropertyFlags::DEVICE_LOCAL);
 
             let xfer_cmd_buf = cmd_pool.allocate_one(vk::CommandBufferLevel::PRIMARY);
             xfer_cmd_buf.begin(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
@@ -416,6 +431,7 @@ impl RenderContext {
             instance,
             physical_device,
             device,
+            allocator,
             swapchain,
             shader_modules,
             render_pass,
