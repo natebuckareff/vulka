@@ -11,12 +11,12 @@ pub struct RenderPass {
 
 impl RenderPass {
     pub fn new(
-        device: &Arc<Device>,
+        device: Arc<Device>,
         vk_render_pass: vk::RenderPass,
         attachment_count: u32,
     ) -> Arc<RenderPass> {
         Arc::new(RenderPass {
-            device: device.clone(),
+            device: device,
             vk_render_pass,
             attachment_count,
         })
@@ -176,7 +176,7 @@ impl RenderPassBuilder {
         };
 
         RenderPass::new(
-            config.device,
+            config.device.clone(),
             vk_render_pass,
             config.attachments.len().try_into().unwrap(),
         )

@@ -13,7 +13,7 @@ pub struct Device {
 
 impl Device {
     pub fn new(
-        gpu_phy_device: &Arc<PhysicalDevice>,
+        gpu_phy_device: Arc<PhysicalDevice>,
         vk_phy_device: vk::PhysicalDevice,
         queue_family_indices: &[u32],
         enabled_extensions: &[&[u8]],
@@ -63,7 +63,7 @@ impl Device {
         };
 
         Arc::new_cyclic(|arc| Device {
-            gpu_phy_device: gpu_phy_device.clone(),
+            gpu_phy_device,
             vk_phy_device,
             ash_device,
             queue_families: queue_family_configs

@@ -122,8 +122,8 @@ impl CommandBuffer {
 
     pub fn begin_render_pass(
         &self,
-        render_pass: &Arc<RenderPass>,
-        framebuffer: &Arc<Framebuffer>,
+        render_pass: &RenderPass,
+        framebuffer: &Framebuffer,
         render_area: vk::Rect2D,
         clear_values: Option<&[vk::ClearValue]>,
         contents: vk::SubpassContents,
