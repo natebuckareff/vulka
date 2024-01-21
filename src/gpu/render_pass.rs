@@ -16,7 +16,7 @@ impl RenderPass {
         attachment_count: u32,
     ) -> Arc<RenderPass> {
         Arc::new(RenderPass {
-            device: device,
+            device,
             vk_render_pass,
             attachment_count,
         })
