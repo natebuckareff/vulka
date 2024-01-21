@@ -31,7 +31,7 @@ impl Buffer {
             p_queue_family_indices: std::ptr::null(),
         };
 
-        let vma_alloc_info = vma::AllocationCreateInfo {
+        let vma_create_info = vma::AllocationCreateInfo {
             flags: allocation_flags,
             usage: memory_usage,
             required_flags: vk::MemoryPropertyFlags::empty(),
@@ -43,7 +43,7 @@ impl Buffer {
 
         let (vk_buffer, vma_allocation) = unsafe {
             allocator
-                .create_buffer(&vk_buffer_info, &vma_alloc_info)
+                .create_buffer(&vk_buffer_info, &vma_create_info)
                 .expect("failed to create and allocate buffer")
         };
 

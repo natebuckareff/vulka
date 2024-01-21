@@ -8,8 +8,8 @@ use winit::window::Window;
 
 use crate::gpu::{
     Buffer, CommandBuffer, CommandPool, DescriptorPool, DescriptorSet, DescriptorSetLayout, Device,
-    Fence, Framebuffer, GraphicsPipeline, HasRawAshHandle, HasRawVkHandle, Instance,
-    PhysicalDevice, PipelineLayout, RenderPass, RenderPassConfig, Semaphore, ShaderKind,
+    Fence, Framebuffer, GraphicsPipeline, HasRawAshHandle, HasRawVkHandle, Image, ImageView,
+    Instance, PhysicalDevice, PipelineLayout, RenderPass, RenderPassConfig, Semaphore, ShaderKind,
     ShaderModule, Swapchain,
 };
 
@@ -144,8 +144,36 @@ impl RenderContext {
 
         let swapchain = {
             let inner_size = window.inner_size();
-            RenderContext::_create_swapchain(device.clone(), inner_size.width, inner_size.height, None)
+            RenderContext::_create_swapchain(
+                device.clone(),
+                inner_size.width,
+                inner_size.height,
+                None,
+            )
         };
+
+        let draw_image = Image::new(
+            device.clone(),
+            allocator.clone(),
+            vk::ImageType::TYPE_2D,
+            vk::Format::R16G16B16A16_SFLOAT,
+            vk::Extent3D {
+                width: swapchain.extent().width,
+                height: swapchain.extent().height,
+                depth: 0,
+            },
+            1,
+            1,
+            vk::SampleCountFlags::TYPE_1,
+            vk::ImageTiling::OPTIMAL,
+            vk::ImageUsageFlags::TRANSFER_SRC
+                | vk::ImageUsageFlags::TRANSFER_DST
+                | vk::ImageUsageFlags::STORAGE
+                | vk::ImageUsageFlags::COLOR_ATTACHMENT,
+            vma::MemoryUsage::AutoPreferDevice,
+            vma::AllocationCreateFlags::empty(),
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+        );
 
         let shader_compiler = shaderc::Compiler::new().unwrap();
 
@@ -534,20 +562,20 @@ impl RenderContext {
         swapchain
     }
 
-    fn _create_framebuffers(
-        swapchain: &Swapchain,
+    fn _create_framebuffers<'u>(
+        swapchain: &'u Swapchain,
         render_pass: &Arc<RenderPass>,
     ) -> Vec<Arc<Framebuffer>> {
-        let mut framebuffers = vec![];
+        let vk::Extent2D { width, height } = *swapchain.extent();
 
-        let swapchain_image_views = swapchain
+        swapchain
             .images()
             .iter()
             .map(|image| {
-                image.get_image_view(
+                let image_view = ImageView::new(
+                    image.clone(),
                     vk::ImageViewType::TYPE_2D,
                     *swapchain.format(),
-                    vk::ComponentMapping::default(),
                     vk::ImageSubresourceRange {
                         aspect_mask: vk::ImageAspectFlags::COLOR,
                         base_mip_level: 0,
@@ -555,29 +583,22 @@ impl RenderContext {
                         base_array_layer: 0,
                         layer_count: 1,
                     },
-                )
+                );
+
+                Framebuffer::new(render_pass.clone(), &[image_view], width, height, 1)
             })
-            .collect::<Vec<_>>();
-
-        for image_view in &swapchain_image_views {
-            let vk::Extent2D { width, height } = *swapchain.extent();
-            framebuffers.push(Framebuffer::new(
-                &render_pass,
-                vec![image_view.clone()],
-                width,
-                height,
-                1,
-            ));
-        }
-
-        framebuffers
+            .collect::<Vec<_>>()
     }
 
     pub fn recreate_swapchain(&mut self, width: u32, height: u32) {
         self.device.wait_idle();
 
-        self.swapchain =
-            RenderContext::_create_swapchain(self.device.clone(), width, height, Some(&self.swapchain));
+        self.swapchain = RenderContext::_create_swapchain(
+            self.device.clone(),
+            width,
+            height,
+            Some(&self.swapchain),
+        );
 
         self.framebuffers = RenderContext::_create_framebuffers(&self.swapchain, &self.render_pass);
 

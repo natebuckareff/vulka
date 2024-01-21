@@ -3,17 +3,17 @@ use ash::vk;
 use std::{cell::OnceCell, sync::Arc};
 
 pub struct Swapchain {
-    gpu_device: Arc<Device>,
+    device: Arc<Device>,
     vk_swapchain: vk::SwapchainKHR,
     ash_swapchain_fn: ash::extensions::khr::Swapchain,
     format: vk::Format,
     extent: vk::Extent2D,
-    images: OnceCell<Vec<Arc<Image>>>,
+    images: OnceCell<Box<[Arc<Image>]>>,
 }
 
 impl Swapchain {
     pub fn new(
-        gpu_device: Arc<Device>,
+        device: Arc<Device>,
         min_image_count: u32,
         image_format: vk::Format,
         image_color_space: vk::ColorSpaceKHR,
@@ -26,7 +26,7 @@ impl Swapchain {
         // which will usually be the case. Should check if they're different and
         // use `vk::SharingMode::CONCURRENT` and pass in `pQueueFamilyIndices`
 
-        let gpu_phy_device = gpu_device.physical_device();
+        let gpu_phy_device = device.physical_device();
         let gpu_instance = gpu_phy_device.instance();
 
         let swapchain_create_info = unsafe {
@@ -61,7 +61,7 @@ impl Swapchain {
 
         let ash_swapchain_fn = unsafe {
             let ash_instance = gpu_instance.get_ash_handle();
-            let ash_device = gpu_device.get_ash_handle();
+            let ash_device = device.get_ash_handle();
             ash::extensions::khr::Swapchain::new(&ash_instance, &ash_device)
         };
 
@@ -72,7 +72,7 @@ impl Swapchain {
         };
 
         Swapchain {
-            gpu_device,
+            device,
             vk_swapchain,
             ash_swapchain_fn,
             format: image_format,
@@ -82,7 +82,7 @@ impl Swapchain {
     }
 
     pub fn device(&self) -> &Arc<Device> {
-        &self.gpu_device
+        &self.device
     }
 
     pub fn format(&self) -> &vk::Format {
@@ -93,14 +93,14 @@ impl Swapchain {
         &self.extent
     }
 
-    pub fn images(&self) -> &[Arc<Image>] {
+    pub fn images(&self) -> &Box<[Arc<Image>]> {
         self.images.get_or_init(|| unsafe {
             self.ash_swapchain_fn
                 .get_swapchain_images(self.vk_swapchain)
-                .unwrap()
+                .expect("failed to get swapchain images")
                 .into_iter()
-                .map(|vk_image| Image::new(&self.gpu_device, vk_image, true))
-                .collect()
+                .map(|vk_image| Image::from_swapchain(self.device.clone(), vk_image))
+                .collect::<Box<_>>()
         })
     }
 
