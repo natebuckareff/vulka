@@ -152,28 +152,28 @@ impl RenderContext {
             )
         };
 
-        let draw_image = Image::new(
-            device.clone(),
-            allocator.clone(),
-            vk::ImageType::TYPE_2D,
-            vk::Format::R16G16B16A16_SFLOAT,
-            vk::Extent3D {
-                width: swapchain.extent().width,
-                height: swapchain.extent().height,
-                depth: 0,
-            },
-            1,
-            1,
-            vk::SampleCountFlags::TYPE_1,
-            vk::ImageTiling::OPTIMAL,
-            vk::ImageUsageFlags::TRANSFER_SRC
-                | vk::ImageUsageFlags::TRANSFER_DST
-                | vk::ImageUsageFlags::STORAGE
-                | vk::ImageUsageFlags::COLOR_ATTACHMENT,
-            vma::MemoryUsage::AutoPreferDevice,
-            vma::AllocationCreateFlags::empty(),
-            vk::MemoryPropertyFlags::DEVICE_LOCAL,
-        );
+        // let draw_image = Image::new(
+        //     device.clone(),
+        //     allocator.clone(),
+        //     vk::ImageType::TYPE_2D,
+        //     vk::Format::R16G16B16A16_SFLOAT,
+        //     vk::Extent3D {
+        //         width: swapchain.extent().width,
+        //         height: swapchain.extent().height,
+        //         depth: 0,
+        //     },
+        //     1,
+        //     1,
+        //     vk::SampleCountFlags::TYPE_1,
+        //     vk::ImageTiling::OPTIMAL,
+        //     vk::ImageUsageFlags::TRANSFER_SRC
+        //         | vk::ImageUsageFlags::TRANSFER_DST
+        //         | vk::ImageUsageFlags::STORAGE
+        //         | vk::ImageUsageFlags::COLOR_ATTACHMENT,
+        //     vma::MemoryUsage::AutoPreferDevice,
+        //     vma::AllocationCreateFlags::empty(),
+        //     vk::MemoryPropertyFlags::DEVICE_LOCAL,
+        // );
 
         let shader_compiler = shaderc::Compiler::new().unwrap();
 
