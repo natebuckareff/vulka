@@ -144,7 +144,7 @@ impl RenderContext {
 
         let swapchain = {
             let inner_size = window.inner_size();
-            RenderContext::_create_swapchain(&device, inner_size.width, inner_size.height, None)
+            RenderContext::_create_swapchain(device.clone(), inner_size.width, inner_size.height, None)
         };
 
         let shader_compiler = shaderc::Compiler::new().unwrap();
@@ -507,12 +507,13 @@ impl RenderContext {
     }
 
     fn _create_swapchain(
-        device: &Arc<Device>,
+        device: Arc<Device>,
         width: u32,
         height: u32,
         old_swapchain: Option<&Swapchain>,
     ) -> Swapchain {
         let physical_device = device.physical_device();
+        let min_image_count = physical_device.get_surface_ideal_image_count();
 
         let SurfaceDetails {
             present_mode,
@@ -520,8 +521,8 @@ impl RenderContext {
             extent,
         } = RenderContext::_get_surface_details(physical_device, width, height);
 
-        let swapchain = device.clone().get_swapchain(
-            physical_device.get_surface_ideal_image_count(),
+        let swapchain = device.get_swapchain(
+            min_image_count,
             format.format,
             format.color_space,
             extent,
@@ -576,7 +577,7 @@ impl RenderContext {
         self.device.wait_idle();
 
         self.swapchain =
-            RenderContext::_create_swapchain(&self.device, width, height, Some(&self.swapchain));
+            RenderContext::_create_swapchain(self.device.clone(), width, height, Some(&self.swapchain));
 
         self.framebuffers = RenderContext::_create_framebuffers(&self.swapchain, &self.render_pass);
 

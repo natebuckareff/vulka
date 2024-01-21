@@ -40,7 +40,7 @@ impl PhysicalDevice {
         enabled_extensions: &[&[u8]],
     ) -> Arc<Device> {
         Device::new(
-            self,
+            self.clone(),
             self.vk_phy_device,
             queue_family_indices,
             enabled_extensions,
