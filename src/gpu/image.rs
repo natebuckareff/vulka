@@ -1,4 +1,4 @@
-use super::{Device, HasRawVkHandle};
+use super::{Device, HasRawVkHandle, ImageView};
 use ash::vk;
 use std::sync::Arc;
 use vma::Alloc;
@@ -6,6 +6,9 @@ use vma::Alloc;
 pub struct Image {
     device: Arc<Device>,
     vk_image: vk::Image,
+    image_type: vk::ImageType,
+    format: vk::Format,
+    extent: vk::Extent3D,
     allocated: Option<AllocatedImage>,
 }
 
@@ -70,6 +73,9 @@ impl Image {
         Arc::new(Self {
             device,
             vk_image,
+            image_type,
+            format,
+            extent,
             allocated: Some(AllocatedImage {
                 allocator,
                 vma_allocation,
@@ -78,11 +84,32 @@ impl Image {
         })
     }
 
+    pub fn image_type(&self) -> &vk::ImageType {
+        &self.image_type
+    }
+
+    pub fn format(&self) -> &vk::Format {
+        &self.format
+    }
+
+    pub fn extent(&self) -> &vk::Extent3D {
+        &self.extent
+    }
+
     // Create an image that is owned by a swapchain
-    pub fn from_swapchain(device: Arc<Device>, vk_image: vk::Image) -> Arc<Self> {
+    pub fn from_swapchain(
+        device: Arc<Device>,
+        vk_image: vk::Image,
+        image_type: vk::ImageType,
+        format: vk::Format,
+        extent: vk::Extent3D,
+    ) -> Arc<Self> {
         Arc::new(Self {
             device: device.clone(),
             vk_image,
+            image_type,
+            format,
+            extent,
             allocated: None,
         })
     }
@@ -91,26 +118,26 @@ impl Image {
         &self.device
     }
 
-    pub fn get_default_view(
-        &self,
-        view_type: vk::ImageViewType,
-        format: vk::Format,
-        subresource_range: vk::ImageSubresourceRange,
-    ) {
-        let vk_image_view_info = vk::ImageViewCreateInfo {
-            s_type: vk::StructureType::IMAGE_VIEW_CREATE_INFO,
-            p_next: std::ptr::null(),
-            flags: vk::ImageViewCreateFlags::empty(),
-            image: self.vk_image,
-            view_type,
-            format,
-            components: vk::ComponentMapping::default(),
-            subresource_range,
+    pub fn get_default_view(self: &Arc<Self>, aspect_mask: vk::ImageAspectFlags) -> Arc<ImageView> {
+        let view_type = match self.image_type {
+            vk::ImageType::TYPE_1D => vk::ImageViewType::TYPE_1D,
+            vk::ImageType::TYPE_2D => vk::ImageViewType::TYPE_2D,
+            vk::ImageType::TYPE_3D => vk::ImageViewType::TYPE_3D,
+            _ => unreachable!(),
         };
 
-        // let vk_image_view = self.device.
-
-        todo!()
+        ImageView::new(
+            self.clone(),
+            view_type,
+            self.format,
+            vk::ImageSubresourceRange {
+                aspect_mask,
+                base_mip_level: 0,
+                level_count: 1,
+                base_array_layer: 0,
+                layer_count: 1,
+            },
+        )
     }
 }
 

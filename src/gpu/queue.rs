@@ -40,75 +40,72 @@ impl Queue {
 
     pub fn submit(
         &self,
-        wait: Option<&[(&Semaphore, vk::PipelineStageFlags)]>,
+        wait: Option<&[(&Semaphore, vk::PipelineStageFlags2)]>,
         command_buffers: &[&CommandBuffer],
-        signal: Option<&[&Semaphore]>,
+        signal: Option<&[(&Semaphore, vk::PipelineStageFlags2)]>,
         fence: Option<&Fence>,
     ) -> () {
         // TODO: This feels like it could be improved. Too much unnecessary
         // copying and `queue_submit` works on batches so the API should
         // probably be batch-oriented
 
-        let mut info = vk::SubmitInfo {
-            s_type: vk::StructureType::SUBMIT_INFO,
-            p_next: std::ptr::null(),
-            wait_semaphore_count: 0,
-            p_wait_semaphores: std::ptr::null(),
-            p_wait_dst_stage_mask: std::ptr::null(),
-            command_buffer_count: 0,
-            p_command_buffers: std::ptr::null(),
-            signal_semaphore_count: 0,
-            p_signal_semaphores: std::ptr::null(),
-        };
-
-        let mut vk_wait_semaphores: Vec<vk::Semaphore>;
-        let mut vk_wait_dst_stage_mask: Vec<vk::PipelineStageFlags>;
-        let mut vk_command_buffers: Vec<vk::CommandBuffer>;
-        let mut vk_signal_semaphores: Vec<vk::Semaphore>;
+        let mut submit_info = vk::SubmitInfo2::default();
+        let mut wait_semaphore_infos: Vec<vk::SemaphoreSubmitInfo> = vec![];
+        let mut command_buffer_infos: Vec<vk::CommandBufferSubmitInfo> = vec![];
+        let mut signal_semaphore_infos: Vec<vk::SemaphoreSubmitInfo> = vec![];
 
         unsafe {
             if let Some(wait) = wait {
-                vk_wait_semaphores = vec![];
-                vk_wait_semaphores.reserve(wait.len());
-
-                vk_wait_dst_stage_mask = vec![];
-                vk_wait_dst_stage_mask.reserve(wait.len());
+                wait_semaphore_infos.reserve(wait.len());
 
                 for x in wait {
-                    vk_wait_semaphores.push(x.0.get_vk_handle());
-                    vk_wait_dst_stage_mask.push(x.1);
+                    let info = vk::SemaphoreSubmitInfo::builder()
+                        .semaphore(x.0.get_vk_handle())
+                        .value(1)
+                        .stage_mask(x.1)
+                        .device_index(0)
+                        .build();
+
+                    wait_semaphore_infos.push(info);
                 }
 
-                info.wait_semaphore_count = wait.len().try_into().unwrap();
-                info.p_wait_semaphores = vk_wait_semaphores.as_ptr();
-                info.p_wait_dst_stage_mask = vk_wait_dst_stage_mask.as_ptr();
+                submit_info.wait_semaphore_info_count = wait.len().try_into().unwrap();
+                submit_info.p_wait_semaphore_infos = wait_semaphore_infos.as_ptr();
             }
 
             if command_buffers.len() > 0 {
-                vk_command_buffers = vec![];
-                vk_command_buffers.reserve(command_buffers.len());
+                command_buffer_infos.reserve(command_buffers.len());
 
                 for x in command_buffers {
-                    vk_command_buffers.push(x.get_vk_handle());
+                    let info = vk::CommandBufferSubmitInfo::builder()
+                        .command_buffer(x.get_vk_handle())
+                        .device_mask(0)
+                        .build();
+
+                    command_buffer_infos.push(info);
                 }
 
-                info.command_buffer_count = command_buffers.len().try_into().unwrap();
-                info.p_command_buffers = vk_command_buffers.as_ptr();
+                submit_info.command_buffer_info_count = command_buffers.len().try_into().unwrap();
+                submit_info.p_command_buffer_infos = command_buffer_infos.as_ptr();
             }
 
             if let Some(signal) = signal {
-                vk_signal_semaphores = vec![];
-                vk_signal_semaphores.reserve(signal.len());
+                signal_semaphore_infos.reserve(signal.len());
 
                 for x in signal {
-                    vk_signal_semaphores.push(x.get_vk_handle());
+                    let info = vk::SemaphoreSubmitInfo::builder()
+                        .semaphore(x.0.get_vk_handle())
+                        .value(1)
+                        .stage_mask(x.1)
+                        .device_index(0)
+                        .build();
+
+                    signal_semaphore_infos.push(info);
                 }
 
-                info.signal_semaphore_count = signal.len().try_into().unwrap();
-                info.p_signal_semaphores = vk_signal_semaphores.as_ptr();
+                submit_info.signal_semaphore_info_count = signal.len().try_into().unwrap();
+                submit_info.p_signal_semaphore_infos = signal_semaphore_infos.as_ptr();
             }
-
-            let submit_infos = &[info];
 
             let submit_fence = fence
                 .map(|x| x.get_vk_handle())
@@ -116,7 +113,8 @@ impl Queue {
 
             self.device
                 .get_ash_handle()
-                .queue_submit(self.vk_queue, submit_infos, submit_fence)
+                .queue_submit2(self.get_vk_handle(), &[submit_info], submit_fence)
+                // .queue_submit(self.vk_queue, submit_infos, submit_fence)
                 .expect("failed to submit to queue");
         }
     }

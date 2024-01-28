@@ -43,17 +43,21 @@ impl Device {
             ..Default::default()
         };
 
-        let device_create_info = vk::DeviceCreateInfo {
-            s_type: vk::StructureType::DEVICE_CREATE_INFO,
-            p_next: std::ptr::null(),
-            flags: vk::DeviceCreateFlags::empty(),
-            queue_create_info_count: queue_create_infos.len().try_into().unwrap(),
-            p_queue_create_infos: queue_create_infos.as_ptr(),
-            enabled_extension_count: enabled_extensions_ptrs.len().try_into().unwrap(),
-            pp_enabled_extension_names: enabled_extensions_ptrs.as_ptr(),
-            p_enabled_features: &enabled_features,
-            ..Default::default()
-        };
+        let mut dynamic_rendering_feature = vk::PhysicalDeviceDynamicRenderingFeatures::builder()
+            .dynamic_rendering(true)
+            .build();
+
+        let mut syncronization2_feature = vk::PhysicalDeviceSynchronization2Features::builder()
+            .synchronization2(true)
+            .build();
+
+        let device_create_info = vk::DeviceCreateInfo::builder()
+            .push_next(&mut dynamic_rendering_feature)
+            .push_next(&mut syncronization2_feature)
+            .queue_create_infos(&queue_create_infos)
+            .enabled_extension_names(enabled_extensions_ptrs.as_slice())
+            .enabled_features(&enabled_features)
+            .build();
 
         let ash_device = unsafe {
             let ash_instance = gpu_phy_device.instance().get_ash_handle();

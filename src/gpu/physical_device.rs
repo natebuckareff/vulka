@@ -69,10 +69,7 @@ impl PhysicalDevice {
     }
 
     pub fn device_name(&self) -> &str {
-        get_str_from_chars(
-            &self._get_physical_device_properties()
-                .device_name
-        )
+        get_str_from_chars(&self._get_physical_device_properties().device_name)
     }
 
     pub fn device_type(&self) -> vk::PhysicalDeviceType {
@@ -84,7 +81,9 @@ impl PhysicalDevice {
             let mut extension_names = vec![];
             for x in self._get_device_extension_properties() {
                 let length = x.extension_name.iter().position(|&ch| ch == 0).unwrap() + 1;
-                let bytes = unsafe { core::slice::from_raw_parts(x.extension_name.as_ptr() as *const u8, length) };
+                let bytes = unsafe {
+                    core::slice::from_raw_parts(x.extension_name.as_ptr() as *const u8, length)
+                };
                 extension_names.push(Vec::from(bytes));
             }
             extension_names

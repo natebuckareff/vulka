@@ -1,4 +1,4 @@
-use super::{Device, HasRawAshHandle, HasRawVkHandle, PipelineLayout, RenderPass, ShaderModule};
+use super::{Device, HasRawAshHandle, HasRawVkHandle, PipelineLayout, ShaderModule};
 use ash::vk;
 use std::sync::Arc;
 
@@ -23,30 +23,21 @@ impl GraphicsPipeline {
         _viewports: Option<&[vk::Viewport]>,
         _scissors: Option<&[vk::Rect2D]>,
         pipeline_layout: &PipelineLayout,
-        render_pass: &RenderPass,
+        color_attachment_formats: &[vk::Format],
+        depth_attachment_format: vk::Format,
+        stencil_attachment_format: vk::Format,
     ) -> Arc<GraphicsPipeline> {
+        let mut rendering_info = vk::PipelineRenderingCreateInfo::builder()
+            .color_attachment_formats(color_attachment_formats)
+            .depth_attachment_format(depth_attachment_format)
+            .stencil_attachment_format(stencil_attachment_format)
+            .build();
+
         let mut create_info = unsafe {
-            vk::GraphicsPipelineCreateInfo {
-                s_type: vk::StructureType::GRAPHICS_PIPELINE_CREATE_INFO,
-                p_next: std::ptr::null(),
-                flags: vk::PipelineCreateFlags::empty(),
-                stage_count: 0,
-                p_stages: std::ptr::null(),
-                p_vertex_input_state: std::ptr::null(),
-                p_input_assembly_state: std::ptr::null(),
-                p_tessellation_state: std::ptr::null(),
-                p_viewport_state: std::ptr::null(),
-                p_rasterization_state: std::ptr::null(),
-                p_multisample_state: std::ptr::null(),
-                p_depth_stencil_state: std::ptr::null(),
-                p_color_blend_state: std::ptr::null(),
-                p_dynamic_state: std::ptr::null(),
-                layout: pipeline_layout.get_vk_handle(),
-                render_pass: render_pass.get_vk_handle(),
-                subpass: 0,
-                base_pipeline_handle: vk::Pipeline::null(),
-                base_pipeline_index: -1,
-            }
+            vk::GraphicsPipelineCreateInfo::builder()
+                .push_next(&mut rendering_info)
+                .layout(pipeline_layout.get_vk_handle())
+                .build()
         };
 
         // ~~~~
@@ -176,7 +167,7 @@ impl GraphicsPipeline {
 
         // XXX
         // TODO: Depends on number of attachements
-        assert!(render_pass.attachment_count() == 1);
+        // assert!(render_pass.attachment_count() == 1);
         let color_blend_attachment = vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::FALSE,
             src_color_blend_factor: vk::BlendFactor::ONE,
