@@ -1,5 +1,6 @@
 use super::{
-    Buffer, DescriptorSet, Device, Framebuffer, Pipeline, PipelineLayout, QueueFamily, RenderPass,
+    Buffer, DescriptorSet, Device, Framebuffer, Image, Pipeline, PipelineLayout, QueueFamily,
+    RenderPass,
 };
 use super::{HasRawAshHandle, HasRawVkHandle};
 use ash::vk;
@@ -117,6 +118,23 @@ impl CommandBuffer {
                     },
                 )
                 .expect("failed to begin command buffer recording");
+        }
+    }
+
+    pub fn clear_color_image(
+        &self,
+        image: &Image,
+        clear_value: vk::ClearColorValue,
+        clear_range: &[vk::ImageSubresourceRange],
+    ) -> () {
+        unsafe {
+            self.pool.device.get_ash_handle().cmd_clear_color_image(
+                self.vk_command_buffer,
+                image.get_vk_handle(),
+                vk::ImageLayout::GENERAL,
+                &clear_value,
+                clear_range,
+            )
         }
     }
 
@@ -293,6 +311,68 @@ impl CommandBuffer {
                 .get_ash_handle()
                 .end_command_buffer(self.vk_command_buffer)
                 .expect("failed to end command buffer recording");
+        }
+    }
+
+    pub fn transition_image(
+        &self,
+        image: &Image,
+        old_layout: vk::ImageLayout,
+        new_layout: vk::ImageLayout,
+    ) -> () {
+        let aspect_mask = match new_layout {
+            vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL => vk::ImageAspectFlags::DEPTH,
+            _ => vk::ImageAspectFlags::COLOR,
+        };
+
+        unsafe {
+            let image_barrier = vk::ImageMemoryBarrier2 {
+                s_type: vk::StructureType::IMAGE_MEMORY_BARRIER_2_KHR,
+                p_next: std::ptr::null(),
+                src_stage_mask: vk::PipelineStageFlags2::ALL_COMMANDS,
+                src_access_mask: vk::AccessFlags2::MEMORY_WRITE,
+                dst_stage_mask: vk::PipelineStageFlags2::ALL_COMMANDS,
+                dst_access_mask: vk::AccessFlags2::MEMORY_READ | vk::AccessFlags2::MEMORY_WRITE,
+                old_layout,
+                new_layout,
+                // src_queue_family_index: todo!(),
+                // dst_queue_family_index: todo!(),
+                image: image.get_vk_handle(),
+                subresource_range: vk::ImageSubresourceRange {
+                    aspect_mask,
+                    base_mip_level: 0,
+                    level_count: vk::REMAINING_MIP_LEVELS,
+                    base_array_layer: 0,
+                    layer_count: vk::REMAINING_ARRAY_LAYERS,
+                },
+                ..Default::default()
+            };
+
+            let dep_info = vk::DependencyInfo {
+                s_type: vk::StructureType::DEPENDENCY_INFO,
+                p_next: std::ptr::null(),
+                dependency_flags: vk::DependencyFlags::empty(),
+                memory_barrier_count: 0,
+                p_memory_barriers: std::ptr::null(),
+                buffer_memory_barrier_count: 0,
+                p_buffer_memory_barriers: std::ptr::null(),
+                image_memory_barrier_count: 1,
+                p_image_memory_barriers: &image_barrier,
+            };
+
+            self.pool
+                .device
+                .get_ash_handle()
+                .cmd_pipeline_barrier2(self.vk_command_buffer, &dep_info)
+        }
+    }
+
+    pub fn blit_image(&self, blit_image_info: &vk::BlitImageInfo2) -> () {
+        unsafe {
+            self.pool
+                .device
+                .get_ash_handle()
+                .cmd_blit_image2(self.vk_command_buffer, blit_image_info)
         }
     }
 
