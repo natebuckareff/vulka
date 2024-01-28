@@ -1,6 +1,6 @@
 use super::{Device, Fence, HasRawAshHandle, HasRawVkHandle, Image, Semaphore};
 use ash::vk;
-use std::{cell::OnceCell, sync::Arc};
+use std::sync::Arc;
 
 pub struct Swapchain {
     device: Arc<Device>,
@@ -8,7 +8,7 @@ pub struct Swapchain {
     ash_swapchain_fn: ash::extensions::khr::Swapchain,
     format: vk::Format,
     extent: vk::Extent2D,
-    images: OnceCell<Box<[Arc<Image>]>>,
+    images: Box<[Arc<Image>]>,
 }
 
 impl Swapchain {
@@ -71,13 +71,34 @@ impl Swapchain {
                 .expect("failed to create swapchain")
         };
 
+        let images = unsafe {
+            ash_swapchain_fn
+                .get_swapchain_images(vk_swapchain)
+                .expect("failed to get swapchain images")
+                .into_iter()
+                .map(|vk_image| {
+                    Image::from_swapchain(
+                        device.clone(),
+                        vk_image,
+                        vk::ImageType::TYPE_2D,
+                        image_format,
+                        vk::Extent3D {
+                            width: image_extent.width,
+                            height: image_extent.height,
+                            depth: 1,
+                        },
+                    )
+                })
+                .collect::<Box<_>>()
+        };
+
         Swapchain {
             device,
             vk_swapchain,
             ash_swapchain_fn,
             format: image_format,
             extent: image_extent,
-            images: OnceCell::new(),
+            images,
         }
     }
 
@@ -94,14 +115,7 @@ impl Swapchain {
     }
 
     pub fn images(&self) -> &Box<[Arc<Image>]> {
-        self.images.get_or_init(|| unsafe {
-            self.ash_swapchain_fn
-                .get_swapchain_images(self.vk_swapchain)
-                .expect("failed to get swapchain images")
-                .into_iter()
-                .map(|vk_image| Image::from_swapchain(self.device.clone(), vk_image))
-                .collect::<Box<_>>()
-        })
+        &self.images
     }
 
     pub fn acquire_next_image(
