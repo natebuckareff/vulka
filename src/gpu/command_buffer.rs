@@ -170,6 +170,50 @@ impl CommandBuffer {
         }
     }
 
+    pub fn begin_rendering(
+        &self,
+        flags: vk::RenderingFlags,
+        render_area: vk::Rect2D,
+        layer_count: u32,
+        view_mask: u32,
+        color_attachments: Option<&[vk::RenderingAttachmentInfo]>,
+        depth_attachment: Option<vk::RenderingAttachmentInfo>,
+        stencil_attachment: Option<vk::RenderingAttachmentInfo>,
+    ) -> () {
+        let mut info = vk::RenderingInfo {
+            s_type: vk::StructureType::RENDERING_INFO,
+            p_next: std::ptr::null(),
+            flags,
+            render_area,
+            layer_count,
+            view_mask,
+            color_attachment_count: 0,
+            p_color_attachments: std::ptr::null(),
+            p_depth_attachment: std::ptr::null(),
+            p_stencil_attachment: std::ptr::null(),
+        };
+
+        unsafe {
+            if let Some(color) = color_attachments {
+                info.color_attachment_count = color.len().try_into().unwrap();
+                info.p_color_attachments = color.as_ptr();
+            }
+
+            if let Some(depth) = depth_attachment {
+                info.p_depth_attachment = &depth;
+            }
+
+            if let Some(stencil) = stencil_attachment {
+                info.p_stencil_attachment = &stencil;
+            }
+
+            self.pool
+                .device
+                .get_ash_handle()
+                .cmd_begin_rendering(self.vk_command_buffer, &info);
+        }
+    }
+
     pub fn bind_pipeline<T>(&self, pipeline: &T) -> ()
     where
         T: Pipeline + HasRawVkHandle<vk::Pipeline>,
@@ -301,6 +345,15 @@ impl CommandBuffer {
                 .device
                 .get_ash_handle()
                 .cmd_end_render_pass(self.vk_command_buffer);
+        }
+    }
+
+    pub fn end_rendering(&self) -> () {
+        unsafe {
+            self.pool
+                .device
+                .get_ash_handle()
+                .cmd_end_rendering(self.vk_command_buffer);
         }
     }
 
