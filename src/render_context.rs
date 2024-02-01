@@ -399,34 +399,16 @@ impl RenderContext {
             vk::Format::UNDEFINED,
         );
 
-        let draw_images = {
-            let mut draw_images = vec![];
-            for _ in 0..max_frames_in_flight {
-                draw_images.push(Image::new(
-                    device.clone(),
-                    allocator.clone(),
-                    vk::ImageType::TYPE_2D,
-                    vk::Format::R16G16B16A16_SFLOAT,
-                    vk::Extent3D {
-                        width: swapchain.extent().width,
-                        height: swapchain.extent().height,
-                        depth: 1,
-                    },
-                    1,
-                    1,
-                    vk::SampleCountFlags::TYPE_1,
-                    vk::ImageTiling::OPTIMAL,
-                    vk::ImageUsageFlags::TRANSFER_SRC
-                        | vk::ImageUsageFlags::TRANSFER_DST // why dst? shouldn't be srconly?
-                        | vk::ImageUsageFlags::STORAGE
-                        | vk::ImageUsageFlags::COLOR_ATTACHMENT,
-                    vma::MemoryUsage::AutoPreferDevice,
-                    vma::AllocationCreateFlags::empty(),
-                    vk::MemoryPropertyFlags::DEVICE_LOCAL,
-                ));
-            }
-            draw_images
-        };
+        let draw_images = RenderContext::_create_draw_images(
+            &device,
+            &allocator,
+            max_frames_in_flight,
+            vk::Extent3D {
+                width: swapchain.extent().width,
+                height: swapchain.extent().height,
+                depth: 1,
+            },
+        );
 
         let mut render_context = Self {
             start_time: std::time::Instant::now(),
@@ -537,6 +519,36 @@ impl RenderContext {
         swapchain
     }
 
+    fn _create_draw_images(
+        device: &Arc<Device>,
+        allocator: &Arc<vma::Allocator>,
+        max_frames_in_flight: usize,
+        extent: vk::Extent3D,
+    ) -> Vec<Arc<Image>> {
+        let mut draw_images = vec![];
+        for _ in 0..max_frames_in_flight {
+            draw_images.push(Image::new(
+                device.clone(),
+                allocator.clone(),
+                vk::ImageType::TYPE_2D,
+                vk::Format::R16G16B16A16_SFLOAT,
+                extent,
+                1,
+                1,
+                vk::SampleCountFlags::TYPE_1,
+                vk::ImageTiling::OPTIMAL,
+                vk::ImageUsageFlags::TRANSFER_SRC
+                        | vk::ImageUsageFlags::TRANSFER_DST // why dst? shouldn't be srconly?
+                        | vk::ImageUsageFlags::STORAGE
+                        | vk::ImageUsageFlags::COLOR_ATTACHMENT,
+                vma::MemoryUsage::AutoPreferDevice,
+                vma::AllocationCreateFlags::empty(),
+                vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            ));
+        }
+        draw_images
+    }
+
     pub fn recreate_swapchain(&mut self, width: u32, height: u32) {
         self.device.wait_idle();
 
@@ -548,6 +560,17 @@ impl RenderContext {
         );
 
         let max_frames_in_flight = self.render_frames.len();
+
+        self.draw_images = RenderContext::_create_draw_images(
+            &self.device,
+            &self.allocator,
+            max_frames_in_flight,
+            vk::Extent3D {
+                width,
+                height,
+                depth: 1,
+            },
+        );
 
         self.render_frames.clear();
 
