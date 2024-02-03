@@ -440,6 +440,38 @@ impl CommandBuffer {
         }
     }
 
+    pub fn copy_buffer_to_image(&self, src: &Buffer, dst: &Image) -> () {
+        let extent = dst.extent();
+
+        let region = vk::BufferImageCopy {
+            buffer_offset: 0,
+            buffer_row_length: 0,
+            buffer_image_height: 0,
+            image_subresource: vk::ImageSubresourceLayers {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                mip_level: 0,
+                base_array_layer: 0,
+                layer_count: 1,
+            },
+            image_offset: vk::Offset3D { x: 0, y: 0, z: 0 },
+            image_extent: vk::Extent3D {
+                width: extent.width,
+                height: extent.height,
+                depth: 1,
+            },
+        };
+
+        unsafe {
+            self.pool.device.get_ash_handle().cmd_copy_buffer_to_image(
+                self.vk_command_buffer,
+                src.get_vk_handle(),
+                dst.get_vk_handle(),
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[region],
+            )
+        }
+    }
+
     pub fn reset(&self) -> () {
         unsafe {
             self.pool

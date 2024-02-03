@@ -1,15 +1,16 @@
 extern crate ash;
 
 use ash::vk;
-use glam::{f32::Mat4, Vec3};
+use glam::{f32::Mat4, Vec2, Vec3};
+use image::EncodableLayout;
 use memoffset::offset_of;
 use std::{borrow::BorrowMut, mem::size_of, rc::Rc, sync::Arc, time::Instant};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::gpu::{
     Buffer, CommandBuffer, CommandPool, DescriptorPool, DescriptorSet, DescriptorSetLayout, Device,
-    Fence, GraphicsPipeline, HasRawAshHandle, HasRawVkHandle, Image, Instance, PhysicalDevice,
-    PipelineLayout, Semaphore, ShaderKind, ShaderModule, Swapchain,
+    Fence, GraphicsPipeline, HasRawAshHandle, HasRawVkHandle, Image, ImageView, Instance,
+    PhysicalDevice, PipelineLayout, Sampler, Semaphore, ShaderKind, ShaderModule, Swapchain,
 };
 
 pub struct RenderContext {
@@ -28,6 +29,9 @@ pub struct RenderContext {
     descriptor_pool: DescriptorPool,
     descriptor_sets: Box<[DescriptorSet]>,
     uniform_buffers: Vec<Buffer>,
+    texture_image: Arc<Image>,
+    texture_image_view: Arc<ImageView>,
+    sampler: Arc<Sampler>,
     indices: Vec<u16>,
     index_buffer: Buffer,
     vertex_buffers: Vec<Buffer>,
@@ -53,6 +57,7 @@ struct Uniform {
 struct Vertex {
     position: Vec3,
     color: Vec3,
+    tex_coord: Vec2,
 }
 
 impl RenderContext {
@@ -91,6 +96,10 @@ impl RenderContext {
                     flags.retain(|x| !properties.queue_flags.contains(*x));
                 }
                 supports_surface && flags.len() == 0
+            })
+            .filter(|x| {
+                let features = x.device_features();
+                features.sampler_anisotropy == vk::TRUE
             })
             .filter(|x| {
                 // Filter for physical devices that support all of the required
@@ -186,10 +195,15 @@ impl RenderContext {
                 .descriptor(1, vk::DescriptorType::UNIFORM_BUFFER)
                 .stage(vk::ShaderStageFlags::VERTEX);
 
+            let sampler_binding = builder
+                .binding()
+                .descriptor(1, vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .stage(vk::ShaderStageFlags::FRAGMENT);
+
             builder.build(
                 device.clone(),
                 vk::DescriptorSetLayoutCreateFlags::empty(),
-                &[uniform_binding],
+                &[uniform_binding, sampler_binding],
             )
         };
 
@@ -217,14 +231,92 @@ impl RenderContext {
             uniform_buffers
         };
 
+        let graphics_queue = device.get_first_queue(vk::QueueFlags::GRAPHICS).unwrap();
+
+        let cmd_pool = CommandPool::new(
+            device.clone(),
+            graphics_queue.queue_family(),
+            vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
+        );
+
+        let texture_image: Arc<Image>;
+        let texture_image_view: Arc<ImageView>;
+        let sampler: Arc<Sampler>;
+
+        {
+            let image_path = "./checker-map.png";
+            let image_buffer = image::open(image_path).unwrap().to_rgba8();
+            let image_bytes = image_buffer.as_bytes();
+
+            let staging_buffer = Buffer::new(
+                device.clone(),
+                allocator.clone(),
+                image_bytes.len(),
+                vk::BufferUsageFlags::TRANSFER_SRC,
+                vma::MemoryUsage::AutoPreferHost,
+                vma::AllocationCreateFlags::MAPPED
+                    | vma::AllocationCreateFlags::HOST_ACCESS_SEQUENTIAL_WRITE,
+            );
+
+            staging_buffer.copy_nonoverlapping(image_bytes);
+
+            texture_image = Image::new(
+                device.clone(),
+                allocator.clone(),
+                vk::ImageType::TYPE_2D,
+                vk::Format::R8G8B8A8_SRGB,
+                vk::Extent3D {
+                    width: image_buffer.width(),
+                    height: image_buffer.height(),
+                    depth: 1,
+                },
+                1,
+                1,
+                vk::SampleCountFlags::TYPE_1,
+                vk::ImageTiling::OPTIMAL,
+                vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
+                vma::MemoryUsage::AutoPreferDevice,
+                vma::AllocationCreateFlags::empty(),
+                vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            );
+
+            let cmds = cmd_pool.allocate_one(vk::CommandBufferLevel::PRIMARY);
+
+            cmds.begin(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+            cmds.transition_image(
+                &texture_image,
+                vk::ImageLayout::UNDEFINED,
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            );
+            cmds.copy_buffer_to_image(&staging_buffer, &texture_image);
+            cmds.transition_image(
+                &texture_image,
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            );
+            cmds.end();
+
+            graphics_queue.submit(None, &[&cmds], None, None);
+            graphics_queue.wait_idle();
+
+            texture_image_view = texture_image.get_default_view(vk::ImageAspectFlags::COLOR);
+            sampler = Sampler::new(device.clone());
+        };
+
         let descriptor_pool = DescriptorPool::new(
             device.clone(),
             vk::DescriptorPoolCreateFlags::empty(),
             max_frames_in_flight as u32,
-            &[(
-                vk::DescriptorType::UNIFORM_BUFFER,
-                max_frames_in_flight.try_into().unwrap(),
-            )],
+            &[
+                (
+                    vk::DescriptorType::UNIFORM_BUFFER,
+                    max_frames_in_flight.try_into().unwrap(),
+                ),
+                (
+                    vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                    max_frames_in_flight.try_into().unwrap(),
+                ),
+            ],
         );
 
         let descriptor_sets = {
@@ -244,15 +336,16 @@ impl RenderContext {
                 0,
                 vk::DescriptorType::UNIFORM_BUFFER,
             );
+
+            descriptor_sets[i].write_image(
+                &sampler,
+                &texture_image_view,
+                vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                1,
+                0,
+                vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+            )
         }
-
-        let graphics_queue = device.get_first_queue(vk::QueueFlags::GRAPHICS).unwrap();
-
-        let cmd_pool = CommandPool::new(
-            device.clone(),
-            graphics_queue.queue_family(),
-            vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
-        );
 
         #[rustfmt::skip]
         let indices: Vec<u16> = vec![
@@ -266,14 +359,14 @@ impl RenderContext {
 
         #[rustfmt::skip]
         let vertices = [
-            /* 0 */ Vertex { position: Vec3::new(-0.5, -0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0) },
-            /* 1 */ Vertex { position: Vec3::new( 0.5, -0.5, -0.5), color: Vec3::new(0.0, 1.0, 0.0) },
-            /* 2 */ Vertex { position: Vec3::new( 0.5,  0.5, -0.5), color: Vec3::new(0.0, 0.0, 1.0) },
-            /* 3 */ Vertex { position: Vec3::new(-0.5,  0.5, -0.5), color: Vec3::new(1.0, 1.0, 1.0) },
-            /* 4 */ Vertex { position: Vec3::new(-0.5, -0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0) },
-            /* 5 */ Vertex { position: Vec3::new( 0.5, -0.5,  0.5), color: Vec3::new(0.0, 1.0, 0.0) },
-            /* 6 */ Vertex { position: Vec3::new( 0.5,  0.5,  0.5), color: Vec3::new(0.0, 0.0, 1.0) },
-            /* 7 */ Vertex { position: Vec3::new(-0.5,  0.5,  0.5), color: Vec3::new(1.0, 1.0, 1.0) },
+            /* 0 */ Vertex { position: Vec3::new(-0.5, -0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 1.0) },
+            /* 1 */ Vertex { position: Vec3::new( 0.5, -0.5, -0.5), color: Vec3::new(0.0, 1.0, 0.0), tex_coord: Vec2::new(0.0, 0.0) },
+            /* 2 */ Vertex { position: Vec3::new( 0.5,  0.5, -0.5), color: Vec3::new(0.0, 0.0, 1.0), tex_coord: Vec2::new(1.0, 0.0) },
+            /* 3 */ Vertex { position: Vec3::new(-0.5,  0.5, -0.5), color: Vec3::new(1.0, 1.0, 1.0), tex_coord: Vec2::new(1.0, 1.0) },
+            /* 4 */ Vertex { position: Vec3::new(-0.5, -0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 0.0) },
+            /* 5 */ Vertex { position: Vec3::new( 0.5, -0.5,  0.5), color: Vec3::new(0.0, 1.0, 0.0), tex_coord: Vec2::new(0.0, 0.0) },
+            /* 6 */ Vertex { position: Vec3::new( 0.5,  0.5,  0.5), color: Vec3::new(0.0, 0.0, 1.0), tex_coord: Vec2::new(0.0, 1.0) },
+            /* 7 */ Vertex { position: Vec3::new(-0.5,  0.5,  0.5), color: Vec3::new(1.0, 1.0, 1.0), tex_coord: Vec2::new(1.0, 1.0) },
         ];
 
         let vertex_bindings = vk::VertexInputBindingDescription {
@@ -294,6 +387,12 @@ impl RenderContext {
                 location: 1,
                 format: vk::Format::R32G32B32_SFLOAT,
                 offset: offset_of!(Vertex, color).try_into().unwrap(),
+            },
+            vk::VertexInputAttributeDescription {
+                binding: 0,
+                location: 2,
+                format: vk::Format::R32G32_SFLOAT,
+                offset: offset_of!(Vertex, tex_coord).try_into().unwrap(),
             },
         ];
 
@@ -426,6 +525,9 @@ impl RenderContext {
             descriptor_pool,
             descriptor_sets,
             uniform_buffers,
+            texture_image,
+            texture_image_view,
+            sampler,
             indices,
             index_buffer,
             vertex_buffers,

@@ -40,6 +40,7 @@ impl Device {
             .collect::<Vec<_>>();
 
         let enabled_features = vk::PhysicalDeviceFeatures {
+            sampler_anisotropy: vk::TRUE,
             ..Default::default()
         };
 

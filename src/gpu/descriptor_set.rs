@@ -1,4 +1,4 @@
-use super::{Buffer, Device, HasRawAshHandle, HasRawVkHandle};
+use super::{Buffer, Device, HasRawAshHandle, HasRawVkHandle, Image, ImageView, Sampler};
 use ash::vk;
 use std::{cell::OnceCell, collections::HashMap, sync::Arc};
 
@@ -125,6 +125,41 @@ impl DescriptorSet {
                 descriptor_type: ty,
                 p_image_info: std::ptr::null(),
                 p_buffer_info: &buffer_info,
+                p_texel_buffer_view: std::ptr::null(),
+            };
+
+            self.device
+                .get_ash_handle()
+                .update_descriptor_sets(&[write], &[]);
+        }
+    }
+
+    pub fn write_image(
+        &self,
+        sampler: &Sampler,
+        image_view: &Arc<ImageView>,
+        image_layout: vk::ImageLayout,
+        binding: u32,
+        element: u32,
+        ty: vk::DescriptorType,
+    ) {
+        unsafe {
+            let image_info = vk::DescriptorImageInfo {
+                sampler: sampler.get_vk_handle(),
+                image_view: image_view.get_vk_handle(),
+                image_layout,
+            };
+
+            let write = vk::WriteDescriptorSet {
+                s_type: vk::StructureType::WRITE_DESCRIPTOR_SET,
+                p_next: std::ptr::null(),
+                dst_set: self.get_vk_handle(),
+                dst_binding: binding,
+                dst_array_element: element,
+                descriptor_count: 1,
+                descriptor_type: ty,
+                p_image_info: &image_info,
+                p_buffer_info: std::ptr::null(),
                 p_texel_buffer_view: std::ptr::null(),
             };
 

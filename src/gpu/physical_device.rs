@@ -72,6 +72,18 @@ impl PhysicalDevice {
         get_str_from_chars(&self._get_physical_device_properties().device_name)
     }
 
+    pub fn device_limits(&self) -> vk::PhysicalDeviceLimits {
+        self._get_physical_device_properties().limits
+    }
+
+    pub fn device_features(&self) -> vk::PhysicalDeviceFeatures {
+        unsafe {
+            self.gpu_instance
+                .get_ash_handle()
+                .get_physical_device_features(self.vk_phy_device)
+        }
+    }
+
     pub fn device_type(&self) -> vk::PhysicalDeviceType {
         self._get_physical_device_properties().device_type
     }
