@@ -1,0 +1,27 @@
+FROM ubuntu:22.04
+RUN apt update && apt -y install \
+    curl zip build-essential cmake git python3 gcc-mingw-w64-x86-64-posix \
+    g++-mingw-w64-x86-64-posix
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN ~/.cargo/bin/rustup update
+RUN ~/.cargo/bin/rustup target add x86_64-pc-windows-gnu
+WORKDIR /rust/build/
+COPY Cargo.toml .
+COPY Cargo.lock .
+RUN sh -c "echo 'fn main() {}' > dummy.rs"
+RUN sed -i 's#src/main.rs#dummy.rs#' Cargo.toml
+RUN ~/.cargo/bin/cargo build --release --target x86_64-pc-windows-gnu
+RUN sed -i 's#dummy.rs#src/main.rs#' Cargo.toml
+RUN rm ./dummy.rs
+COPY . .
+RUN ~/.cargo/bin/cargo build --release --target x86_64-pc-windows-gnu
+
+RUN cp ./target/x86_64-pc-windows-gnu/release/vulka.exe .
+RUN cp /usr/lib/gcc/x86_64-w64-mingw32/10-posix/libstdc++-6.dll .
+RUN cp /usr/lib/gcc/x86_64-w64-mingw32/10-posix/libgcc_s_seh-1.dll .
+RUN cp /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll .
+
+RUN zip -r vulka-win-amd64.zip \
+    ./slime_shield.png ./vulka.exe ./libstdc++-6.dll ./libgcc_s_seh-1.dll \
+    ./libwinpthread-1.dll
