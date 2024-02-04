@@ -244,7 +244,7 @@ impl RenderContext {
         let sampler: Arc<Sampler>;
 
         {
-            let image_path = "./checker-map.png";
+            let image_path = "./slime_shield.png";
             let image_buffer = image::open(image_path).unwrap().to_rgba8();
             let image_bytes = image_buffer.as_bytes();
 
@@ -349,24 +349,46 @@ impl RenderContext {
 
         #[rustfmt::skip]
         let indices: Vec<u16> = vec![
-            0, 2, 1, 2, 0, 3, // z = -0.5
-            4, 5, 6, 6, 7, 4, // z =  0.5
-            0, 1, 4, 5, 4, 1, // y = -0.5
-            2, 3, 6, 7, 6, 3, // y =  0.5
-            3, 0, 4, 4, 7, 3, // x = -0.5
-            1, 2, 5, 5, 2, 6, // x =  0.5
+             0,  1,  2,  2,  1,  3,
+             4,  6,  5,  5,  6,  7,
+             8, 10,  9,  9, 10, 11,
+            12, 13, 14, 14, 13, 15,
+            16, 17, 18, 18, 17, 19,
+            20, 22, 21, 21, 22, 23,
         ];
 
         #[rustfmt::skip]
         let vertices = [
-            /* 0 */ Vertex { position: Vec3::new(-0.5, -0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 1.0) },
-            /* 1 */ Vertex { position: Vec3::new( 0.5, -0.5, -0.5), color: Vec3::new(0.0, 1.0, 0.0), tex_coord: Vec2::new(0.0, 0.0) },
-            /* 2 */ Vertex { position: Vec3::new( 0.5,  0.5, -0.5), color: Vec3::new(0.0, 0.0, 1.0), tex_coord: Vec2::new(1.0, 0.0) },
-            /* 3 */ Vertex { position: Vec3::new(-0.5,  0.5, -0.5), color: Vec3::new(1.0, 1.0, 1.0), tex_coord: Vec2::new(1.0, 1.0) },
-            /* 4 */ Vertex { position: Vec3::new(-0.5, -0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 0.0) },
-            /* 5 */ Vertex { position: Vec3::new( 0.5, -0.5,  0.5), color: Vec3::new(0.0, 1.0, 0.0), tex_coord: Vec2::new(0.0, 0.0) },
-            /* 6 */ Vertex { position: Vec3::new( 0.5,  0.5,  0.5), color: Vec3::new(0.0, 0.0, 1.0), tex_coord: Vec2::new(0.0, 1.0) },
-            /* 7 */ Vertex { position: Vec3::new(-0.5,  0.5,  0.5), color: Vec3::new(1.0, 1.0, 1.0), tex_coord: Vec2::new(1.0, 1.0) },
+            Vertex { position: Vec3::new(-0.5, -0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 0.0) },
+            Vertex { position: Vec3::new(-0.5,  0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 1.0) },
+            Vertex { position: Vec3::new( 0.5, -0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 0.0) },
+            Vertex { position: Vec3::new( 0.5,  0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 1.0) },
+
+            Vertex { position: Vec3::new(-0.5, -0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 0.0) },
+            Vertex { position: Vec3::new(-0.5,  0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 1.0) },
+            Vertex { position: Vec3::new( 0.5, -0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 0.0) },
+            Vertex { position: Vec3::new( 0.5,  0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 1.0) },
+
+            Vertex { position: Vec3::new(-0.5, -0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 0.0) },
+            Vertex { position: Vec3::new(-0.5, -0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 1.0) },
+            Vertex { position: Vec3::new( 0.5, -0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 0.0) },
+            Vertex { position: Vec3::new( 0.5, -0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 1.0) },
+
+            Vertex { position: Vec3::new(-0.5,  0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 0.0) },
+            Vertex { position: Vec3::new(-0.5,  0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 1.0) },
+            Vertex { position: Vec3::new( 0.5,  0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 0.0) },
+            Vertex { position: Vec3::new( 0.5,  0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 1.0) },
+
+
+            Vertex { position: Vec3::new(-0.5,  0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 0.0) },
+            Vertex { position: Vec3::new(-0.5,  0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 1.0) },
+            Vertex { position: Vec3::new(-0.5, -0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 0.0) },
+            Vertex { position: Vec3::new(-0.5, -0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 1.0) },
+
+            Vertex { position: Vec3::new( 0.5,  0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 0.0) },
+            Vertex { position: Vec3::new( 0.5,  0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(0.0, 1.0) },
+            Vertex { position: Vec3::new( 0.5, -0.5,  0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 0.0) },
+            Vertex { position: Vec3::new( 0.5, -0.5, -0.5), color: Vec3::new(1.0, 0.0, 0.0), tex_coord: Vec2::new(1.0, 1.0) },
         ];
 
         let vertex_bindings = vk::VertexInputBindingDescription {
@@ -739,11 +761,7 @@ impl RenderFrame {
             extent.width as f32 / extent.height as f32
         };
 
-        let model = {
-            let x = Mat4::from_rotation_x(time * 90_f32.to_radians());
-            let y = Mat4::from_rotation_y(time * 90_f32.to_radians());
-            x * y
-        };
+        let model = Mat4::from_rotation_z(time * 4.0 * 90_f32.to_radians());
 
         let view = Mat4::look_at_rh(
             Vec3::new(2.0, 2.0, 2.0),
@@ -857,7 +875,7 @@ impl RenderFrame {
             0.5 * f32::cos(std::f32::consts::PI + context.start_time.elapsed().as_secs_f32()) + 0.5;
 
         let clear_value = vk::ClearColorValue {
-            float32: [time, 0.0, 0.0, 0.0],
+            float32: [0.0, time, 0.0, 0.0],
         };
 
         let clear_range = vk::ImageSubresourceRange {
