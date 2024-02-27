@@ -244,7 +244,7 @@ impl RenderContext {
         let sampler: Arc<Sampler>;
 
         {
-            let image_path = "./slime_shield.png";
+            let image_path = "./checker-map.png";
             let image_buffer = image::open(image_path).unwrap().to_rgba8();
             let image_bytes = image_buffer.as_bytes();
 
@@ -761,7 +761,7 @@ impl RenderFrame {
             extent.width as f32 / extent.height as f32
         };
 
-        let model = Mat4::from_rotation_z(time * 4.0 * 90_f32.to_radians());
+        let model = Mat4::from_rotation_z(time * 90_f32.to_radians());
 
         let view = Mat4::look_at_rh(
             Vec3::new(2.0, 2.0, 2.0),
