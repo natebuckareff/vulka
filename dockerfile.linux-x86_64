@@ -1,0 +1,22 @@
+FROM ubuntu:22.04
+RUN apt update && apt -y install \
+    curl zip build-essential cmake git python3 pkg-config libwayland-dev
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN ~/.cargo/bin/rustup update
+RUN ~/.cargo/bin/rustup target add x86_64-unknown-linux-gnu
+WORKDIR /rust/build/
+COPY Cargo.toml .
+COPY Cargo.lock .
+RUN sh -c "echo 'fn main() {}' > dummy.rs"
+RUN sed -i 's#src/main.rs#dummy.rs#' Cargo.toml
+RUN ~/.cargo/bin/cargo build --release --target x86_64-unknown-linux-gnu
+RUN sed -i 's#dummy.rs#src/main.rs#' Cargo.toml
+RUN rm ./dummy.rs
+COPY . .
+RUN ~/.cargo/bin/cargo build --release --target x86_64-unknown-linux-gnu
+
+RUN cp ./target/x86_64-unknown-linux-gnu/release/vulka .
+
+RUN zip -r vulka-linux-x86_64.zip \
+    ./checker-map.png ./vulka
