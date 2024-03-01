@@ -930,10 +930,6 @@ impl RenderFrame {
             None,
         );
 
-        println!("swapchain_image[{}] = {:p}", image_index, unsafe {
-            swapchain_image.get_vk_handle()
-        });
-
         self.cmd_buf
             .bind_pipeline(context.graphics_pipeline.as_ref());
 
