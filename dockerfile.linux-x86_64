@@ -18,5 +18,6 @@ RUN ~/.cargo/bin/cargo build --release --target x86_64-unknown-linux-gnu
 
 RUN cp ./target/x86_64-unknown-linux-gnu/release/vulka .
 
-RUN zip -r vulka-linux-x86_64.zip \
+ARG VERSION
+RUN zip -r vulka-${VERSION}-linux-x86_64.zip \
     ./checker-map.png ./vulka
