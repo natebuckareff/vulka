@@ -1,4 +1,5 @@
-use super::{InputValue, RawDeviceId, RawEvent};
+use super::{Control, InputKind, InputValue, RawDeviceId, RawEvent};
+use enumflags2::BitFlags;
 use gilrs::{Event, EventType};
 
 #[derive(Debug)]
@@ -17,28 +18,28 @@ impl RawGamepadEvent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum RawGamepadControl {
+pub enum GamepadControl {
     Connection,
     Button(gilrs::Button),
     Axis(gilrs::Axis),
 }
 
 impl RawEvent<RawDeviceId> for RawGamepadEvent {
-    type RawControl = RawGamepadControl;
+    type Control = GamepadControl;
 
     fn get_device_id(&self) -> RawDeviceId {
         RawDeviceId::Gamepad(self.device_id)
     }
 
-    fn get_raw_control(&self) -> Self::RawControl {
+    fn get_control(&self) -> Self::Control {
         match self.event {
-            EventType::ButtonPressed(button, _) => RawGamepadControl::Button(button),
+            EventType::ButtonPressed(button, _) => GamepadControl::Button(button),
             EventType::ButtonRepeated(_, _) => todo!(),
-            EventType::ButtonReleased(button, _) => RawGamepadControl::Button(button),
-            EventType::ButtonChanged(button, _, _) => RawGamepadControl::Button(button),
-            EventType::AxisChanged(axis, _, _) => RawGamepadControl::Axis(axis),
-            EventType::Connected => RawGamepadControl::Connection,
-            EventType::Disconnected => RawGamepadControl::Connection,
+            EventType::ButtonReleased(button, _) => GamepadControl::Button(button),
+            EventType::ButtonChanged(button, _, _) => GamepadControl::Button(button),
+            EventType::AxisChanged(axis, _, _) => GamepadControl::Axis(axis),
+            EventType::Connected => GamepadControl::Connection,
+            EventType::Disconnected => GamepadControl::Connection,
             EventType::Dropped => todo!(),
         }
     }
@@ -53,6 +54,16 @@ impl RawEvent<RawDeviceId> for RawGamepadEvent {
             EventType::Connected => InputValue::Digital(true),
             EventType::Disconnected => InputValue::Digital(false),
             EventType::Dropped => todo!(),
+        }
+    }
+}
+
+impl Control for GamepadControl {
+    fn kind(&self) -> BitFlags<InputKind> {
+        match self {
+            GamepadControl::Connection => InputKind::Digital.into(),
+            GamepadControl::Button(_) => InputKind::Digital | InputKind::Analog,
+            GamepadControl::Axis(_) => InputKind::Analog.into(),
         }
     }
 }

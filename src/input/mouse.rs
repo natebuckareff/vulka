@@ -1,7 +1,7 @@
+use super::{Control, InputKind, InputValue, RawDeviceId, RawEvent};
+use enumflags2::BitFlags;
 use winit::dpi::PhysicalPosition;
 use winit::event::{DeviceId, ElementState, MouseButton, MouseScrollDelta, WindowEvent};
-
-use super::{InputValue, RawDeviceId, RawEvent};
 
 #[derive(Debug)]
 pub struct RawMouseEvent {
@@ -19,7 +19,7 @@ pub enum RawMouseEventData {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum RawMouseControl {
+pub enum MouseControl {
     Button(MouseButton),
     Wheel,
     Cursor,
@@ -63,19 +63,19 @@ impl RawMouseEvent {
 }
 
 impl RawEvent<RawDeviceId> for RawMouseEvent {
-    type RawControl = RawMouseControl;
+    type Control = MouseControl;
 
     fn get_device_id(&self) -> RawDeviceId {
         RawDeviceId::Mouse(self.device_id)
     }
 
-    fn get_raw_control(&self) -> Self::RawControl {
+    fn get_control(&self) -> Self::Control {
         match &self.data {
-            RawMouseEventData::Button(button, _) => RawMouseControl::Button(*button),
-            RawMouseEventData::Wheel { .. } => RawMouseControl::Wheel,
-            RawMouseEventData::Move { .. } => RawMouseControl::Cursor,
-            RawMouseEventData::Entered => RawMouseControl::Cursor,
-            RawMouseEventData::Left => RawMouseControl::Cursor,
+            RawMouseEventData::Button(button, _) => MouseControl::Button(*button),
+            RawMouseEventData::Wheel { .. } => MouseControl::Wheel,
+            RawMouseEventData::Move { .. } => MouseControl::Cursor,
+            RawMouseEventData::Entered => MouseControl::Cursor,
+            RawMouseEventData::Left => MouseControl::Cursor,
         }
     }
 
@@ -93,6 +93,16 @@ impl RawEvent<RawDeviceId> for RawMouseEvent {
             RawMouseEventData::Move(position) => InputValue::Analog2d(position.x, position.y),
             RawMouseEventData::Entered => InputValue::Digital(true),
             RawMouseEventData::Left => InputValue::Digital(false),
+        }
+    }
+}
+
+impl Control for MouseControl {
+    fn kind(&self) -> BitFlags<InputKind> {
+        match &self {
+            MouseControl::Button(_) => InputKind::Digital.into(),
+            MouseControl::Wheel => InputKind::Analog2d.into(),
+            MouseControl::Cursor => InputKind::Analog2d.into(),
         }
     }
 }

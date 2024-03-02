@@ -4,13 +4,14 @@ mod input;
 mod render_context;
 
 use gilrs::Gilrs;
-use input::{ControlManager, RawGamepadEvent, RawMouseEvent};
+use input::InputManager;
+use input::{MouseControl, RawGamepadEvent, RawMouseEvent};
 use std::sync::Arc;
 use std::time::Instant;
 use winit::dpi::LogicalSize;
-use winit::event;
+use winit::event::{self, MouseButton};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::keyboard::{Key, NamedKey};
+use winit::keyboard::{Key, KeyCode, NamedKey, PhysicalKey};
 use winit::window::WindowBuilder;
 
 fn main() {
@@ -32,9 +33,13 @@ fn main() {
     let mut render_context = render_context::RenderContext::new(window.clone(), 2);
 
     let mut gilrs = Gilrs::new().unwrap();
-    let mut kbd_manager = ControlManager::new(start_time);
-    let mut mouse_manager = ControlManager::new(start_time);
-    let mut gamepad_manager = ControlManager::new(start_time);
+    let mut kbd_manager = InputManager::new(start_time);
+    let mut mouse_manager = InputManager::new(start_time);
+    let mut gamepad_manager = InputManager::new(start_time);
+
+    kbd_manager.set_action(PhysicalKey::Code(KeyCode::Space), (), None);
+    mouse_manager.set_action(MouseControl::Button(MouseButton::Left), (), None);
+    gamepad_manager.set_wildcard_action((), None);
 
     event_loop
         .run(move |event, target| match event {
@@ -44,8 +49,11 @@ fn main() {
                     device_id, event, ..
                 } => {
                     let raw = input::RawKeyboardEvent { device_id, event };
-                    let input_event = kbd_manager.get_input_event(&raw);
-                    println!("{:?}", &input_event);
+                    kbd_manager.update(&raw);
+                    for i in 0..kbd_manager.get_input_event_count() {
+                        println!("{:?}", kbd_manager.get_nth_last_input_event(i));
+                    }
+                    kbd_manager.flush_input_events();
 
                     if raw.event.logical_key == Key::Named(NamedKey::Escape) {
                         target.exit()
@@ -53,18 +61,27 @@ fn main() {
                 }
                 event::WindowEvent::MouseInput { .. } => {
                     let raw = RawMouseEvent::from_window_event(event);
-                    let input_event = mouse_manager.get_input_event(&raw);
-                    println!("{:?}", &input_event);
+                    mouse_manager.update(&raw);
+                    for i in 0..mouse_manager.get_input_event_count() {
+                        println!("{:?}", mouse_manager.get_nth_last_input_event(i));
+                    }
+                    mouse_manager.flush_input_events();
                 }
                 event::WindowEvent::MouseWheel { .. } => {
                     let raw = RawMouseEvent::from_window_event(event);
-                    let input_event = mouse_manager.get_input_event(&raw);
-                    println!("{:?}", &input_event);
+                    mouse_manager.update(&raw);
+                    for i in 0..mouse_manager.get_input_event_count() {
+                        println!("{:?}", mouse_manager.get_nth_last_input_event(i));
+                    }
+                    mouse_manager.flush_input_events();
                 }
                 event::WindowEvent::CursorMoved { .. } => {
                     let raw = RawMouseEvent::from_window_event(event);
-                    let input_event = mouse_manager.get_input_event(&raw);
-                    println!("{:?}", &input_event);
+                    mouse_manager.update(&raw);
+                    for i in 0..mouse_manager.get_input_event_count() {
+                        println!("{:?}", mouse_manager.get_nth_last_input_event(i));
+                    }
+                    mouse_manager.flush_input_events();
                 }
                 event::WindowEvent::Resized(inner_size) => {
                     render_context.recreate_swapchain(inner_size.width, inner_size.height);
@@ -72,8 +89,11 @@ fn main() {
                 event::WindowEvent::RedrawRequested => {
                     while let Some(event) = gilrs.next_event() {
                         let raw = RawGamepadEvent::from_gilrs_event(event);
-                        let input_event = gamepad_manager.get_input_event(&raw);
-                        println!("{:?}", &input_event);
+                        gamepad_manager.update(&raw);
+                        for i in 0..gamepad_manager.get_input_event_count() {
+                            println!("{:?}", gamepad_manager.get_nth_last_input_event(i));
+                        }
+                        gamepad_manager.flush_input_events();
                     }
                     render_context.draw_next_frame();
                 }
